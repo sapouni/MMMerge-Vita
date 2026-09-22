@@ -6,7 +6,7 @@ A work-in-progress PS Vita port of [OpenYAMM](https://github.com/pjasicek/openya
 bringing Might and Magic VI, VII and VIII together through its MMerge-inspired worlds.
 It runs an ARMv7 Android engine through the community shared-library loader and vitaGL.
 
-This repository is being prepared **privately**. It is not an official OpenYAMM release.
+This repository is **private**. It is not an official OpenYAMM release.
 
 ## Current package: 01.06 R2
 
@@ -20,7 +20,7 @@ The game binaries match 01.06; the new full-game bubble still needs hardware con
 
 ## Download and install
 
-The installer ZIP will be attached to a private GitHub Release after account setup.
+[Download the current installer ZIP](https://github.com/sapouni/MMerge-Vita/releases/tag/v01.06-r2) from the private GitHub Release.
 It contains a VPK plus instructions. Game-data archives are **not** distributed here.
 See [installation instructions](docs/INSTALL.txt) and the [upstream project](https://github.com/pjasicek/openyamm)
 for the prepared asset layout. These ZIPs are not unchanged GOG installation files.
