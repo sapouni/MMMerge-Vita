@@ -1,0 +1,276 @@
+#pragma once
+
+#include "game/indoor/IndoorMapData.h"
+#include "game/events/EventRuntime.h"
+#include "game/maps/MapDeltaData.h"
+#include "game/outdoor/VitaSpatialIndex.h"
+
+#include <bx/math.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <array>
+#include <vector>
+#include <unordered_map>
+
+namespace OpenYAMM::Game
+{
+enum class IndoorProjectionAxis : uint8_t
+{
+    DropX = 0,
+    DropY,
+    DropZ,
+};
+
+struct IndoorProjectedFacePoint
+{
+    float x = 0.0f;
+    float y = 0.0f;
+};
+
+enum class IndoorFaceKind : uint8_t
+{
+    Unknown = 0,
+    Floor,
+    Ceiling,
+    Wall,
+};
+
+struct IndoorFaceGeometryData
+{
+    size_t faceIndex = 0;
+    uint32_t attributes = 0;
+    uint16_t sectorId = 0;
+    uint16_t backSectorId = 0;
+    uint8_t facetType = 0;
+    bool isPortal = false;
+    bool hasPlane = false;
+    bool isWalkable = false;
+    IndoorFaceKind kind = IndoorFaceKind::Unknown;
+    float minX = 0.0f;
+    float maxX = 0.0f;
+    float minY = 0.0f;
+    float maxY = 0.0f;
+    float minZ = 0.0f;
+    float maxZ = 0.0f;
+    IndoorProjectionAxis projectionAxis = IndoorProjectionAxis::DropZ;
+    bx::Vec3 normal = {0.0f, 0.0f, 0.0f};
+    std::vector<bx::Vec3> vertices;
+    std::vector<IndoorProjectedFacePoint> projectedVertices;
+    // Exact XY or a proven interior disc; regenerated geometry resets this memo. Height limits, masks,
+    // walkability and the query Z are always evaluated afresh by the caller.
+    mutable float floorMemoX = 0, floorMemoY = 0, floorMemoHeight = 0;
+    mutable float floorMemoSafeRadiusSquared = 0;
+    mutable bool floorMemoValid = false, floorMemoInside = false;
+};
+
+class IndoorFaceGeometryCache
+{
+public:
+    IndoorFaceGeometryCache() = default;
+    explicit IndoorFaceGeometryCache(size_t faceCount, bool sparse = false);
+
+    void reset(size_t faceCount);
+    void invalidateFace(size_t faceIndex);
+    void setAttributeOverrides(const MapDeltaData *pMapDeltaData);
+    // Sector bounds are static map data; reset/invalidation also discards this derived index.
+    const std::vector<size_t> &sectorsNearPoint(const IndoorMapData &map, const bx::Vec3 &point);
+    // Returns source-list indices, retaining original tie order. Small lists use the linear path.
+    const std::vector<size_t> *facesNearArea(const IndoorMapData &map,
+        const std::vector<IndoorVertex> &vertices, const std::vector<uint16_t> &faces,
+        const VitaSpatialIndex::Bounds &area);
+    const IndoorFaceGeometryData *geometryForFace(
+        const IndoorMapData &indoorMapData,
+        const std::vector<IndoorVertex> &vertices,
+        size_t faceIndex
+    );
+
+private:
+    bool m_sparse = false;
+    size_t m_faceCount = 0;
+    std::unordered_map<size_t, std::optional<IndoorFaceGeometryData>> m_sparseEntries;
+    const MapDeltaData *m_pAttributeOverrides = nullptr;
+    uint64_t m_attributeRevision = 0;
+    std::vector<uint8_t> m_entryStates;
+    std::vector<IndoorFaceGeometryData> m_entries;
+    const IndoorMapData *m_pSectorMap = nullptr;
+    const IndoorSector *m_pSectorData = nullptr;
+    size_t m_sectorCount = 0;
+    VitaSpatialIndex m_sectorBounds;
+    std::vector<size_t> m_sectorCandidates;
+    struct FaceQueryIndex
+    {
+        VitaSpatialIndex bounds;
+        std::vector<size_t> candidates;
+        const uint16_t *pData = nullptr;
+        size_t count = 0;
+        uint64_t revision = 0;
+        struct LocalQuery
+        {
+            VitaSpatialIndex::Bounds area{};
+            std::vector<size_t> candidates;
+            bool valid = false;
+        };
+        std::array<LocalQuery, 4> localQueries;
+        size_t nextQuery = 0;
+    };
+    const IndoorMapData *m_pFaceQueryMap = nullptr;
+    uint64_t m_faceQueryRevision = 1;
+    std::unordered_map<const std::vector<uint16_t> *, FaceQueryIndex> m_faceQueries;
+};
+
+struct IndoorFloorSample
+{
+    bool hasFloor = false;
+    bool isWalkable = false;
+    float height = 0.0f;
+    float normalZ = 1.0f;
+    int16_t sectorId = -1;
+    size_t faceIndex = static_cast<size_t>(-1);
+};
+
+struct IndoorCeilingSample
+{
+    bool hasCeiling = false;
+    float height = 0.0f;
+    int16_t sectorId = -1;
+    size_t faceIndex = static_cast<size_t>(-1);
+};
+
+struct IndoorInitialActorPlacement
+{
+    bool hasFloor = false;
+    bool movedHorizontally = false;
+    bool wallOverlapResolved = false;
+    bool verticalOverlapResolved = false;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    int16_t sectorId = -1;
+};
+
+struct IndoorPortalSectorTrace
+{
+    bool reachedTargetSector = false;
+    std::vector<int16_t> sectorIds;
+};
+
+std::vector<IndoorVertex> buildIndoorMechanismAdjustedVertices(
+    const IndoorMapData &indoorMapData,
+    const MapDeltaData *pIndoorMapDeltaData,
+    const EventRuntimeState *pEventRuntimeState
+);
+void applyIndoorMechanismDoorToVertices(
+    const MapDeltaDoor &door,
+    float distance,
+    std::vector<IndoorVertex> &vertices
+);
+std::vector<std::vector<uint16_t>> buildNeighboringIndoorSectorIds(const IndoorMapData &indoorMapData);
+float fixedIndoorDoorDirectionComponentToFloat(int value);
+bool indoorDoorCarriesPartySupport(const MapDeltaDoor &door);
+bx::Vec3 indoorVertexToWorld(const IndoorVertex &vertex);
+bool buildIndoorFaceGeometry(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    size_t faceIndex,
+    IndoorFaceGeometryData &geometry,
+    const MapDeltaData *pMapDeltaData = nullptr
+);
+bool isPointInsideIndoorPolygonProjected(
+    const bx::Vec3 &point,
+    const std::vector<bx::Vec3> &vertices,
+    const bx::Vec3 &normal
+);
+int16_t indoorSectorBehindPortal(const IndoorFaceGeometryData &geometry, int16_t currentSectorId);
+IndoorPortalSectorTrace traceIndoorLineThroughPortalSectors(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    IndoorFaceGeometryCache &geometryCache,
+    const bx::Vec3 &start,
+    int16_t sourceSectorId,
+    const bx::Vec3 &end,
+    int16_t targetSectorId,
+    int portalLimit
+);
+void traceIndoorLineThroughPortalSectors(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    IndoorFaceGeometryCache &geometryCache,
+    const bx::Vec3 &start,
+    int16_t sourceSectorId,
+    const bx::Vec3 &end,
+    int16_t targetSectorId,
+    int portalLimit,
+    IndoorPortalSectorTrace &trace
+);
+float calculateIndoorFaceHeight(const IndoorFaceGeometryData &geometry, float x, float y);
+bool isIndoorCylinderBlockedByFace(
+    const IndoorFaceGeometryData &geometry,
+    float x,
+    float y,
+    float z,
+    float radius,
+    float height
+);
+IndoorInitialActorPlacement resolveIndoorInitialActorPlacement(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    IndoorFaceGeometryCache &geometryCache,
+    float x,
+    float y,
+    float z,
+    float radius,
+    float height,
+    bool canFly,
+    float maxRise,
+    float maxDrop
+);
+IndoorFloorSample sampleIndoorFloor(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    float x,
+    float y,
+    float z,
+    float maxRise,
+    float maxDrop,
+    std::optional<int16_t> preferredSectorId = std::nullopt,
+    const std::vector<uint8_t> *pFaceExclusionMask = nullptr,
+    IndoorFaceGeometryCache *pGeometryCache = nullptr
+);
+IndoorFloorSample sampleIndoorFloorOnFace(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    size_t faceIndex,
+    float x,
+    float y,
+    float z,
+    float maxRise,
+    float maxDrop,
+    const std::vector<uint8_t> *pFaceExclusionMask = nullptr,
+    IndoorFaceGeometryCache *pGeometryCache = nullptr
+);
+std::optional<bx::Vec3> chooseIndoorBountyHuntSpawnPoint(
+    const IndoorMapData &indoorMapData,
+    const MapDeltaData *pIndoorMapDeltaData,
+    const EventRuntimeState *pEventRuntimeState,
+    uint32_t seed
+);
+IndoorCeilingSample sampleIndoorCeiling(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    float x,
+    float y,
+    float z,
+    std::optional<int16_t> preferredSectorId = std::nullopt,
+    const std::vector<uint8_t> *pFaceExclusionMask = nullptr,
+    IndoorFaceGeometryCache *pGeometryCache = nullptr
+);
+std::optional<int16_t> findIndoorSectorForPoint(
+    const IndoorMapData &indoorMapData,
+    const std::vector<IndoorVertex> &vertices,
+    const bx::Vec3 &point,
+    IndoorFaceGeometryCache *pGeometryCache = nullptr,
+    bool allowBoundingSectorFallback = true
+);
+}

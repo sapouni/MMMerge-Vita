@@ -1,0 +1,1796 @@
+#include "engine/VitaFrameProfile.h"
+#include "game/audio/GameAudioSystem.h"
+
+#include "engine/TextTable.h"
+
+#include <SDL3/SDL.h>
+
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/error.h>
+#include <libavutil/opt.h>
+#include <libavutil/samplefmt.h>
+#include <libswresample/swresample.h>
+}
+
+#include <array>
+#include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <future>
+#include <iostream>
+#include <memory>
+#include <string_view>
+#include <unordered_set>
+#include <vector>
+
+namespace OpenYAMM::Game
+{
+namespace
+{
+constexpr float MusicVolume = 0.34f;
+constexpr float MusicFadeInSeconds = 1.25f;
+constexpr float MusicFadeOutSeconds = 0.6f;
+
+bool audioTraceEnabled()
+{
+    static const bool enabled = []()
+    {
+        const char *pValue = std::getenv("OPENYAMM_AUDIO_TRACE");
+
+        if (pValue == nullptr || pValue[0] == '\0')
+        {
+            return false;
+        }
+
+        return std::string_view(pValue) != "0";
+    }();
+    return enabled;
+}
+
+const char *playbackGroupName(GameAudioSystem::PlaybackGroup group)
+{
+    switch (group)
+    {
+    case GameAudioSystem::PlaybackGroup::Ui:
+        return "Ui";
+
+    case GameAudioSystem::PlaybackGroup::World:
+        return "World";
+
+    case GameAudioSystem::PlaybackGroup::Speech:
+        return "Speech";
+
+    case GameAudioSystem::PlaybackGroup::Music:
+        return "Music";
+
+    case GameAudioSystem::PlaybackGroup::Walking:
+        return "Walking";
+
+    case GameAudioSystem::PlaybackGroup::HouseDoor:
+        return "HouseDoor";
+
+    case GameAudioSystem::PlaybackGroup::HouseSpeech:
+        return "HouseSpeech";
+    }
+
+    return "Unknown";
+}
+
+void logAudioTracePrefix(const char *pEvent, const char *pSource)
+{
+    std::cerr << "[AudioTrace t=" << SDL_GetTicks() << "] " << pEvent << " source=" << pSource;
+}
+
+void logAudioTracePosition(const std::optional<GameAudioSystem::WorldPosition> &position)
+{
+    if (!position)
+    {
+        std::cerr << " positional=0";
+        return;
+    }
+
+    std::cerr << " positional=1 pos=(" << position->x << ',' << position->y << ',' << position->z << ')';
+}
+
+void logAudioTraceResolvedSound(
+    const char *pEvent,
+    const char *pSource,
+    uint32_t soundId,
+    const std::string &virtualPath,
+    GameAudioSystem::PlaybackGroup group,
+    const std::optional<GameAudioSystem::WorldPosition> &position,
+    bool loop,
+    uint64_t instanceId,
+    const char *pResult)
+{
+    if (!audioTraceEnabled())
+    {
+        return;
+    }
+
+    logAudioTracePrefix(pEvent, pSource);
+    std::cerr << " soundId=" << soundId
+              << " group=" << playbackGroupName(group)
+              << " loop=" << (loop ? 1 : 0)
+              << " path=\"" << virtualPath << "\""
+              << " result=" << pResult
+              << " instance=" << instanceId;
+    logAudioTracePosition(position);
+    std::cerr << '\n';
+}
+
+void logAudioTraceUnresolvedSound(
+    const char *pSource,
+    uint32_t soundId,
+    GameAudioSystem::PlaybackGroup group,
+    const std::optional<GameAudioSystem::WorldPosition> &position,
+    bool loop)
+{
+    if (!audioTraceEnabled())
+    {
+        return;
+    }
+
+    logAudioTracePrefix("request", pSource);
+    std::cerr << " soundId=" << soundId
+              << " group=" << playbackGroupName(group)
+              << " loop=" << (loop ? 1 : 0)
+              << " result=unresolved";
+    logAudioTracePosition(position);
+    std::cerr << '\n';
+}
+
+std::vector<std::vector<std::string>> rowsFromTextTable(const Engine::TextTable &textTable)
+{
+    std::vector<std::vector<std::string>> rows;
+    rows.reserve(textTable.getRowCount());
+
+    for (size_t rowIndex = 0; rowIndex < textTable.getRowCount(); ++rowIndex)
+    {
+        rows.push_back(textTable.getRow(rowIndex));
+    }
+
+    return rows;
+}
+
+struct AvFormatContextCloser
+{
+    void operator()(AVFormatContext *pFormatContext) const
+    {
+        if (pFormatContext != nullptr)
+        {
+            avformat_close_input(&pFormatContext);
+        }
+    }
+};
+
+struct AvCodecContextCloser
+{
+    void operator()(AVCodecContext *pCodecContext) const
+    {
+        if (pCodecContext != nullptr)
+        {
+            avcodec_free_context(&pCodecContext);
+        }
+    }
+};
+
+struct AvFrameCloser
+{
+    void operator()(AVFrame *pFrame) const
+    {
+        if (pFrame != nullptr)
+        {
+            av_frame_free(&pFrame);
+        }
+    }
+};
+
+struct AvPacketCloser
+{
+    void operator()(AVPacket *pPacket) const
+    {
+        if (pPacket != nullptr)
+        {
+            av_packet_free(&pPacket);
+        }
+    }
+};
+
+struct SwrContextCloser
+{
+    void operator()(SwrContext *pSwrContext) const
+    {
+        if (pSwrContext != nullptr)
+        {
+            swr_free(&pSwrContext);
+        }
+    }
+};
+
+struct AvioContextCloser
+{
+    void operator()(AVIOContext *pIoContext) const
+    {
+        if (pIoContext != nullptr)
+        {
+            av_freep(&pIoContext->buffer);
+            avio_context_free(&pIoContext);
+        }
+    }
+};
+
+using AvFormatContextPtr = std::unique_ptr<AVFormatContext, AvFormatContextCloser>;
+using AvCodecContextPtr = std::unique_ptr<AVCodecContext, AvCodecContextCloser>;
+using AvFramePtr = std::unique_ptr<AVFrame, AvFrameCloser>;
+using AvPacketPtr = std::unique_ptr<AVPacket, AvPacketCloser>;
+using SwrContextPtr = std::unique_ptr<SwrContext, SwrContextCloser>;
+using AvioContextPtr = std::unique_ptr<AVIOContext, AvioContextCloser>;
+
+struct MemoryAudioReader
+{
+    const std::vector<uint8_t> *pBytes = nullptr;
+    size_t position = 0;
+};
+
+std::string ffmpegErrorString(int errorCode)
+{
+    std::array<char, AV_ERROR_MAX_STRING_SIZE> buffer = {};
+    av_strerror(errorCode, buffer.data(), buffer.size());
+    return std::string(buffer.data());
+}
+
+int readAudioBytes(void *pOpaque, uint8_t *pBuffer, int bufferSize)
+{
+    if (pOpaque == nullptr || pBuffer == nullptr || bufferSize <= 0)
+    {
+        return AVERROR_EOF;
+    }
+
+    MemoryAudioReader &reader = *static_cast<MemoryAudioReader *>(pOpaque);
+
+    if (reader.pBytes == nullptr || reader.position >= reader.pBytes->size())
+    {
+        return AVERROR_EOF;
+    }
+
+    const size_t remainingBytes = reader.pBytes->size() - reader.position;
+    const size_t copySize = std::min(static_cast<size_t>(bufferSize), remainingBytes);
+    std::memcpy(pBuffer, reader.pBytes->data() + reader.position, copySize);
+    reader.position += copySize;
+    return static_cast<int>(copySize);
+}
+
+int64_t seekAudioBytes(void *pOpaque, int64_t offset, int whence)
+{
+    if (pOpaque == nullptr)
+    {
+        return -1;
+    }
+
+    MemoryAudioReader &reader = *static_cast<MemoryAudioReader *>(pOpaque);
+
+    if (reader.pBytes == nullptr)
+    {
+        return -1;
+    }
+
+    if (whence == AVSEEK_SIZE)
+    {
+        return static_cast<int64_t>(reader.pBytes->size());
+    }
+
+    int64_t targetPosition = 0;
+
+    switch (whence)
+    {
+        case SEEK_SET:
+            targetPosition = offset;
+            break;
+
+        case SEEK_CUR:
+            targetPosition = static_cast<int64_t>(reader.position) + offset;
+            break;
+
+        case SEEK_END:
+            targetPosition = static_cast<int64_t>(reader.pBytes->size()) + offset;
+            break;
+
+        default:
+            return -1;
+    }
+
+    if (targetPosition < 0 || targetPosition > static_cast<int64_t>(reader.pBytes->size()))
+    {
+        return -1;
+    }
+
+    reader.position = static_cast<size_t>(targetPosition);
+    return targetPosition;
+}
+
+bool decodeAudioSamplesFromBytes(const std::vector<uint8_t> &bytes, std::vector<float> &samples)
+{
+    samples.clear();
+
+    if (bytes.empty())
+    {
+        return false;
+    }
+
+    MemoryAudioReader reader = {};
+    reader.pBytes = &bytes;
+    uint8_t *pIoBuffer = static_cast<uint8_t *>(av_malloc(4096));
+
+    if (pIoBuffer == nullptr)
+    {
+        return false;
+    }
+
+    AVIOContext *pRawIoContext = avio_alloc_context(
+        pIoBuffer,
+        4096,
+        0,
+        &reader,
+        &readAudioBytes,
+        nullptr,
+        &seekAudioBytes);
+
+    if (pRawIoContext == nullptr)
+    {
+        return false;
+    }
+
+    AvioContextPtr pIoContext(pRawIoContext);
+    AVFormatContext *pRawFormatContext = avformat_alloc_context();
+
+    if (pRawFormatContext == nullptr)
+    {
+        return false;
+    }
+
+    pRawFormatContext->pb = pIoContext.get();
+    pRawFormatContext->flags |= AVFMT_FLAG_CUSTOM_IO;
+    const int openResult = avformat_open_input(&pRawFormatContext, nullptr, nullptr, nullptr);
+
+    if (openResult < 0)
+    {
+        avformat_free_context(pRawFormatContext);
+        std::cerr << "GameAudioSystem: avformat_open_input failed: " << ffmpegErrorString(openResult) << '\n';
+        return false;
+    }
+
+    AvFormatContextPtr pFormatContext(pRawFormatContext);
+
+    const int streamInfoResult = avformat_find_stream_info(pFormatContext.get(), nullptr);
+
+    if (streamInfoResult < 0)
+    {
+        std::cerr << "GameAudioSystem: avformat_find_stream_info failed: "
+                  << ffmpegErrorString(streamInfoResult) << '\n';
+        return false;
+    }
+
+    const int audioStreamIndex = av_find_best_stream(pFormatContext.get(), AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+
+    if (audioStreamIndex < 0)
+    {
+        std::cerr << "GameAudioSystem: no decodable audio stream found\n";
+        return false;
+    }
+
+    AVStream *pStream = pFormatContext->streams[audioStreamIndex];
+    const AVCodec *pCodec = avcodec_find_decoder(pStream->codecpar->codec_id);
+
+    if (pCodec == nullptr)
+    {
+        std::cerr << "GameAudioSystem: decoder not available for codec id " << pStream->codecpar->codec_id << '\n';
+        return false;
+    }
+
+    AvCodecContextPtr pCodecContext(avcodec_alloc_context3(pCodec));
+
+    if (pCodecContext == nullptr)
+    {
+        return false;
+    }
+
+    int result = avcodec_parameters_to_context(pCodecContext.get(), pStream->codecpar);
+
+    if (result < 0)
+    {
+        std::cerr << "GameAudioSystem: avcodec_parameters_to_context failed: "
+                  << ffmpegErrorString(result) << '\n';
+        return false;
+    }
+
+    result = avcodec_open2(pCodecContext.get(), pCodec, nullptr);
+
+    if (result < 0)
+    {
+        std::cerr << "GameAudioSystem: avcodec_open2 failed: " << ffmpegErrorString(result) << '\n';
+        return false;
+    }
+
+    SwrContextPtr pResampler(swr_alloc());
+
+    if (pResampler == nullptr)
+    {
+        return false;
+    }
+
+    AVChannelLayout outputLayout = AV_CHANNEL_LAYOUT_STEREO;
+    av_opt_set_chlayout(pResampler.get(), "in_chlayout", &pCodecContext->ch_layout, 0);
+    av_opt_set_chlayout(pResampler.get(), "out_chlayout", &outputLayout, 0);
+    av_opt_set_int(pResampler.get(), "in_sample_rate", pCodecContext->sample_rate, 0);
+    av_opt_set_int(pResampler.get(), "out_sample_rate", 48000, 0);
+    av_opt_set_sample_fmt(pResampler.get(), "in_sample_fmt", pCodecContext->sample_fmt, 0);
+    av_opt_set_sample_fmt(pResampler.get(), "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+
+    result = swr_init(pResampler.get());
+
+    if (result < 0)
+    {
+        std::cerr << "GameAudioSystem: swr_init failed: " << ffmpegErrorString(result) << '\n';
+        return false;
+    }
+
+    AvPacketPtr pPacket(av_packet_alloc());
+    AvFramePtr pFrame(av_frame_alloc());
+
+    if (pPacket == nullptr || pFrame == nullptr)
+    {
+        return false;
+    }
+
+    const auto appendFrame =
+        [&samples, &pResampler](AVCodecContext &codecContext, const AVFrame &frame) -> bool
+        {
+            const int outputCapacity = av_rescale_rnd(
+                swr_get_delay(pResampler.get(), codecContext.sample_rate) + frame.nb_samples,
+                48000,
+                codecContext.sample_rate,
+                AV_ROUND_UP);
+
+            if (outputCapacity <= 0)
+            {
+                return true;
+            }
+
+            std::vector<float> convertedSamples(static_cast<size_t>(outputCapacity) * 2);
+            uint8_t *pOutputData[1] = {reinterpret_cast<uint8_t *>(convertedSamples.data())};
+            const int convertedFrames = swr_convert(
+                pResampler.get(),
+                pOutputData,
+                outputCapacity,
+                const_cast<const uint8_t **>(frame.extended_data),
+                frame.nb_samples);
+
+            if (convertedFrames < 0)
+            {
+                return false;
+            }
+
+            convertedSamples.resize(static_cast<size_t>(convertedFrames) * 2);
+            samples.insert(samples.end(), convertedSamples.begin(), convertedSamples.end());
+            return true;
+        };
+
+    const auto drainDecoder =
+        [&](bool flushing) -> bool
+        {
+            while (true)
+            {
+                result = avcodec_receive_frame(pCodecContext.get(), pFrame.get());
+
+                if (result == AVERROR(EAGAIN))
+                {
+                    return true;
+                }
+
+                if (result == AVERROR_EOF)
+                {
+                    return true;
+                }
+
+                if (result < 0)
+                {
+                    std::cerr << "GameAudioSystem: avcodec_receive_frame failed: "
+                              << ffmpegErrorString(result) << '\n';
+                    return false;
+                }
+
+                if (!appendFrame(*pCodecContext, *pFrame))
+                {
+                    std::cerr << "GameAudioSystem: failed to resample decoded audio frame\n";
+                    return false;
+                }
+
+                av_frame_unref(pFrame.get());
+
+                if (!flushing)
+                {
+                    break;
+                }
+            }
+
+            return true;
+        };
+
+    while ((result = av_read_frame(pFormatContext.get(), pPacket.get())) >= 0)
+    {
+        if (pPacket->stream_index != audioStreamIndex)
+        {
+            av_packet_unref(pPacket.get());
+            continue;
+        }
+
+        result = avcodec_send_packet(pCodecContext.get(), pPacket.get());
+        av_packet_unref(pPacket.get());
+
+        if (result < 0)
+        {
+            std::cerr << "GameAudioSystem: avcodec_send_packet failed: "
+                      << ffmpegErrorString(result) << '\n';
+            return false;
+        }
+
+        if (!drainDecoder(false))
+        {
+            return false;
+        }
+    }
+
+    if (result != AVERROR_EOF)
+    {
+        std::cerr << "GameAudioSystem: av_read_frame failed: " << ffmpegErrorString(result) << '\n';
+        return false;
+    }
+
+    result = avcodec_send_packet(pCodecContext.get(), nullptr);
+
+    if (result < 0)
+    {
+        std::cerr << "GameAudioSystem: avcodec_send_packet(flush) failed: "
+                  << ffmpegErrorString(result) << '\n';
+        return false;
+    }
+
+    return drainDecoder(true) && !samples.empty();
+}
+}
+
+bool GameAudioSystem::initialize(
+    const Engine::AssetFileSystem &assetFileSystem,
+    const CharacterDollTable &characterDollTable,
+    const MergedCharacterVoiceTable &characterVoiceTable)
+{
+    shutdown();
+    if (!initializeSoundCatalog(assetFileSystem))
+    {
+        return false;
+    }
+
+    bindGameplayTables(characterDollTable, characterVoiceTable);
+    return true;
+}
+
+bool GameAudioSystem::initializeMenuAudio(const Engine::AssetFileSystem &assetFileSystem)
+{
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": resetting menu audio\n";
+#endif
+    shutdown();
+    return initializeSoundCatalog(assetFileSystem);
+}
+
+void GameAudioSystem::bindGameplayTables(
+    const CharacterDollTable &characterDollTable,
+    const MergedCharacterVoiceTable &characterVoiceTable)
+{
+    m_pCharacterDollTable = &characterDollTable;
+    m_pCharacterVoiceTable = &characterVoiceTable;
+}
+
+bool GameAudioSystem::initializeSoundCatalog(const Engine::AssetFileSystem &assetFileSystem)
+{
+    if (Engine::VitaProfile::noAudio()) { return true; }
+
+    m_pAssetFileSystem = &assetFileSystem;
+
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": reading sound catalog\n";
+#endif
+    const std::optional<std::string> engineSoundCatalogText =
+        assetFileSystem.readTextFile("engine/data_tables/sounds.txt");
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": reading speech catalog\n";
+#endif
+    const std::optional<std::string> speechReactionText =
+        assetFileSystem.readTextFile("engine/data_tables/character_speech_events.txt");
+
+    if (!engineSoundCatalogText || !speechReactionText)
+    {
+        return false;
+    }
+
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": parsing sound tables\n";
+#endif
+    const std::optional<Engine::TextTable> parsedEngineSoundCatalog =
+        Engine::TextTable::parseTabSeparated(*engineSoundCatalogText);
+    const std::optional<Engine::TextTable> parsedSpeechReactions =
+        Engine::TextTable::parseTabSeparated(*speechReactionText);
+
+    if (!parsedEngineSoundCatalog || !parsedSpeechReactions)
+    {
+        return false;
+    }
+
+    const std::vector<std::vector<std::string>> engineSoundRows = rowsFromTextTable(*parsedEngineSoundCatalog);
+    const std::vector<std::vector<std::string>> worldSoundRows;
+    const std::vector<std::vector<std::string>> speechRows = rowsFromTextTable(*parsedSpeechReactions);
+
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": binding sound tables and initializing output\n";
+#endif
+    std::string soundCatalogError;
+    if (!m_soundCatalog.loadFromScopedRows(engineSoundRows, worldSoundRows, soundCatalogError)
+        || !m_speechReactionTable.loadFromRows(speechRows)
+        || !m_audioSystem.initialize(assetFileSystem))
+    {
+        if (!soundCatalogError.empty())
+        {
+            std::cerr << "Failed to load sound catalog: " << soundCatalogError << '\n';
+        }
+
+        shutdown();
+        return false;
+    }
+
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": indexing sound asset paths\n";
+#endif
+    m_soundCatalog.initializeVirtualPathIndex(assetFileSystem);
+#ifdef OPENYAMM_VITA_LOADER
+    std::cerr << "STARTUP t=" << SDL_GetTicks() << ": sound asset index ready\n";
+#endif
+    return true;
+}
+
+void GameAudioSystem::shutdown()
+{
+    m_activeGroupInstanceIds.clear();
+    m_activeSpeechInstanceIds.clear();
+    m_activeNonResettableSoundInstanceIds.clear();
+    m_persistentPreloadedClipKeys.clear();
+    m_mapPreloadedClipKeys.clear();
+    m_previousMapPreloadedClipKeys.clear();
+    m_pendingMusicDecodeJob.reset();
+    m_loadedMusicClipKeys.clear();
+    m_activeMusicTrack = 0;
+    m_pendingMusicTrack = 0;
+    m_activeMusicInstanceId = 0;
+    m_activeMusicVolume = 0.0f;
+    m_musicFadeVelocity = 0.0f;
+    m_pendingMusicDecodeDelaySeconds = 0.0f;
+    m_backgroundMusicPaused = false;
+    m_recordingMapSoundPreloads = false;
+    m_soundVolume = 1.0f;
+    m_musicVolume = 1.0f;
+    m_voiceVolume = 1.0f;
+    m_audioSystem.shutdown();
+    m_soundCatalog = {};
+    m_speechReactionTable = {};
+    m_pCharacterDollTable = nullptr;
+    m_pCharacterVoiceTable = nullptr;
+    m_pAssetFileSystem = nullptr;
+}
+
+void GameAudioSystem::update(float listenerX, float listenerY, float listenerZ, float deltaSeconds)
+{
+    Engine::VitaProfile::Scope profile(Engine::VitaProfile::Audio);
+    if (Engine::VitaProfile::noAudio()) { return; }
+
+    updatePendingBackgroundMusicDecode();
+
+    const float musicTargetVolume = targetMusicVolume();
+
+    if (m_activeMusicInstanceId != 0 && !m_audioSystem.isClipPlaying(m_activeMusicInstanceId))
+    {
+        m_activeMusicInstanceId = 0;
+        m_activeMusicTrack = 0;
+        m_activeMusicVolume = 0.0f;
+        m_backgroundMusicPaused = false;
+    }
+
+    if (!m_backgroundMusicPaused && m_activeMusicInstanceId == 0 && m_pendingMusicTrack > 0)
+    {
+        const int nextTrack = m_pendingMusicTrack;
+
+        if (isBackgroundMusicTrackLoaded(nextTrack))
+        {
+            m_pendingMusicTrack = 0;
+            m_pendingMusicDecodeDelaySeconds = 0.0f;
+            startBackgroundMusicTrack(nextTrack);
+        }
+        else
+        {
+            if (m_pendingMusicDecodeDelaySeconds > 0.0f)
+            {
+                m_pendingMusicDecodeDelaySeconds =
+                    std::max(0.0f, m_pendingMusicDecodeDelaySeconds - std::max(deltaSeconds, 0.0f));
+            }
+
+            if (m_pendingMusicDecodeDelaySeconds <= 0.0f)
+            {
+                queueBackgroundMusicTrackDecode(nextTrack);
+            }
+        }
+    }
+
+    if (!m_backgroundMusicPaused && m_activeMusicInstanceId != 0 && m_musicFadeVelocity != 0.0f)
+    {
+        m_activeMusicVolume =
+            std::clamp(m_activeMusicVolume + m_musicFadeVelocity * deltaSeconds, 0.0f, musicTargetVolume);
+        m_audioSystem.setClipVolume(m_activeMusicInstanceId, m_activeMusicVolume);
+
+        if (m_activeMusicVolume <= 0.0f && m_musicFadeVelocity < 0.0f)
+        {
+            m_audioSystem.stopClip(m_activeMusicInstanceId);
+            m_activeMusicInstanceId = 0;
+            m_activeMusicTrack = 0;
+            m_musicFadeVelocity = 0.0f;
+            m_backgroundMusicPaused = false;
+
+            if (m_pendingMusicTrack > 0)
+            {
+                const int nextTrack = m_pendingMusicTrack;
+
+                if (isBackgroundMusicTrackLoaded(nextTrack))
+                {
+                    m_pendingMusicTrack = 0;
+                    m_pendingMusicDecodeDelaySeconds = 0.0f;
+                    startBackgroundMusicTrack(nextTrack);
+                }
+                else
+                {
+                    if (m_pendingMusicDecodeDelaySeconds <= 0.0f)
+                    {
+                        queueBackgroundMusicTrackDecode(nextTrack);
+                    }
+                }
+            }
+        }
+        else if (m_activeMusicVolume >= musicTargetVolume && m_musicFadeVelocity > 0.0f)
+        {
+            m_activeMusicVolume = musicTargetVolume;
+            m_musicFadeVelocity = 0.0f;
+        }
+    }
+
+    evictUnusedMusicClips();
+
+    Engine::AudioSystem::ListenerState listenerState = {};
+    listenerState.x = listenerX;
+    listenerState.y = listenerY;
+    listenerState.z = listenerZ;
+    m_audioSystem.update(listenerState);
+}
+
+void GameAudioSystem::setSoundVolume(float volume)
+{
+    m_soundVolume = std::clamp(volume, 0.0f, 1.0f);
+}
+
+float GameAudioSystem::soundVolume() const
+{
+    return m_soundVolume;
+}
+
+void GameAudioSystem::setMusicVolume(float volume)
+{
+    m_musicVolume = std::clamp(volume, 0.0f, 1.0f);
+
+    if (m_activeMusicInstanceId == 0)
+    {
+        return;
+    }
+
+    if (m_musicFadeVelocity == 0.0f)
+    {
+        m_activeMusicVolume = targetMusicVolume();
+        m_audioSystem.setClipVolume(m_activeMusicInstanceId, m_activeMusicVolume);
+        return;
+    }
+
+    m_activeMusicVolume = std::clamp(m_activeMusicVolume, 0.0f, targetMusicVolume());
+    m_audioSystem.setClipVolume(m_activeMusicInstanceId, m_activeMusicVolume);
+}
+
+void GameAudioSystem::setVoiceVolume(float volume)
+{
+    m_voiceVolume = std::clamp(volume, 0.0f, 1.0f);
+}
+
+bool GameAudioSystem::preloadSound(SoundRef sound)
+{
+    if (Engine::VitaProfile::noAudio()) { return true; }
+
+    if (sound.id == 0)
+    {
+        return false;
+    }
+
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPath(sound);
+
+    if (!virtualPath)
+    {
+        return false;
+    }
+
+    if (!m_audioSystem.preloadClip(*virtualPath))
+    {
+        return false;
+    }
+
+    if (m_recordingMapSoundPreloads)
+    {
+        m_mapPreloadedClipKeys.insert(*virtualPath);
+    }
+    else
+    {
+        m_persistentPreloadedClipKeys.insert(*virtualPath);
+    }
+
+    return true;
+}
+
+bool GameAudioSystem::preloadCommonSound(SoundId soundId)
+{
+    return preloadSound(engineSound(static_cast<uint32_t>(soundId)));
+}
+
+void GameAudioSystem::beginMapSoundPreload()
+{
+    m_previousMapPreloadedClipKeys = std::move(m_mapPreloadedClipKeys);
+    m_mapPreloadedClipKeys.clear();
+    m_recordingMapSoundPreloads = true;
+}
+
+void GameAudioSystem::endMapSoundPreload()
+{
+    m_recordingMapSoundPreloads = false;
+
+    for (const std::string &clipKey : m_previousMapPreloadedClipKeys)
+    {
+        if (!m_mapPreloadedClipKeys.contains(clipKey) && !m_persistentPreloadedClipKeys.contains(clipKey))
+        {
+            m_audioSystem.releaseClip(clipKey);
+        }
+    }
+
+    m_previousMapPreloadedClipKeys.clear();
+}
+
+Engine::AudioSystem::CacheStats GameAudioSystem::cacheStats() const
+{
+    return m_audioSystem.cacheStats();
+}
+
+void GameAudioSystem::preloadSpellEffectSounds(const SpellTable &spellTable)
+{
+    std::unordered_set<int> preloadedSoundIds;
+
+    for (const SpellEntry &spellEntry : spellTable.entries())
+    {
+        if (spellEntry.effectSoundId <= 0 || !preloadedSoundIds.insert(spellEntry.effectSoundId).second)
+        {
+            continue;
+        }
+
+        preloadSound(engineSound(static_cast<uint32_t>(spellEntry.effectSoundId)));
+    }
+}
+
+bool GameAudioSystem::playSound(
+    uint32_t soundId,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    return playSound(engineSound(soundId), group, position);
+}
+
+bool GameAudioSystem::playSound(
+    SoundRef sound,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPath(sound);
+
+    if (!virtualPath)
+    {
+        logAudioTraceUnresolvedSound("playSound", sound.id, group, position, false);
+        return false;
+    }
+
+    return playResolvedSound(*virtualPath, group, position, false, sound.id, "playSound") != 0;
+}
+
+bool GameAudioSystem::playSoundByName(
+    const std::string &soundName,
+    PlaybackGroup group,
+    SoundScope scope,
+    const std::optional<WorldPosition> &position)
+{
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPathByName(scope, soundName);
+    if (!virtualPath)
+    {
+        if (audioTraceEnabled())
+        {
+            logAudioTracePrefix("request", "playSoundByName");
+            std::cerr << " name=\"" << soundName << "\" group=" << playbackGroupName(group)
+                      << " loop=0 result=unresolved";
+            logAudioTracePosition(position);
+            std::cerr << '\n';
+        }
+        return false;
+    }
+
+    return playResolvedSound(*virtualPath, group, position, false, 0, "playSoundByName") != 0;
+}
+
+uint64_t GameAudioSystem::playSoundInstance(
+    uint32_t soundId,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position,
+    bool loop)
+{
+    return playSoundInstance(engineSound(soundId), group, position, loop);
+}
+
+uint64_t GameAudioSystem::playSoundInstance(
+    SoundRef sound,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position,
+    bool loop)
+{
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPath(sound);
+
+    if (!virtualPath)
+    {
+        logAudioTraceUnresolvedSound("playSoundInstance", sound.id, group, position, loop);
+        return 0;
+    }
+
+    return playResolvedSound(*virtualPath, group, position, loop, sound.id, "playSoundInstance");
+}
+
+uint64_t GameAudioSystem::playSoundInstanceByName(
+    const std::string &soundName,
+    PlaybackGroup group,
+    SoundScope scope,
+    const std::optional<WorldPosition> &position,
+    bool loop)
+{
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPathByName(scope, soundName);
+
+    if (!virtualPath)
+    {
+        if (audioTraceEnabled())
+        {
+            logAudioTracePrefix("request", "playSoundInstanceByName");
+            std::cerr << " name=\"" << soundName << "\" group=" << playbackGroupName(group)
+                      << " loop=" << (loop ? 1 : 0) << " result=unresolved";
+            logAudioTracePosition(position);
+            std::cerr << '\n';
+        }
+
+        return 0;
+    }
+
+    return playResolvedSound(*virtualPath, group, position, loop, 0, "playSoundInstanceByName");
+}
+
+bool GameAudioSystem::playLoopingSound(
+    uint32_t soundId,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    return playLoopingSound(engineSound(soundId), group, position);
+}
+
+bool GameAudioSystem::playLoopingSound(
+    SoundRef sound,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPath(sound);
+
+    if (!virtualPath)
+    {
+        logAudioTraceUnresolvedSound("playLoopingSound", sound.id, group, position, true);
+        return false;
+    }
+
+    return playResolvedSound(*virtualPath, group, position, true, sound.id, "playLoopingSound") != 0;
+}
+
+uint64_t GameAudioSystem::playResolvedSound(
+    const std::string &virtualPath,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position,
+    bool loop,
+    uint32_t soundId,
+    const char *pSource)
+{
+    Engine::VitaProfile::Scope profileSoundTriggers(Engine::VitaProfile::SoundTriggers);
+    if (Engine::VitaProfile::noAudio()) { return 0; }
+
+    if (isExclusiveGroup(group))
+    {
+        const std::unordered_map<PlaybackGroup, uint64_t>::const_iterator activeIt =
+            m_activeGroupInstanceIds.find(group);
+
+        if (activeIt != m_activeGroupInstanceIds.end())
+        {
+            if (audioTraceEnabled())
+            {
+                logAudioTracePrefix("stop-exclusive", pSource);
+                std::cerr << " soundId=" << soundId
+                          << " group=" << playbackGroupName(group)
+                          << " stoppedInstance=" << activeIt->second << '\n';
+            }
+
+            m_audioSystem.stopClip(activeIt->second);
+        }
+    }
+
+    Engine::AudioSystem::PlaybackOptions options = {};
+    options.positional = position.has_value();
+    options.loop = loop;
+    options.volume = playbackGroupVolume(group);
+
+    if (position)
+    {
+        options.x = position->x;
+        options.y = position->y;
+        options.z = position->z;
+    }
+
+    const uint64_t instanceId = m_audioSystem.playClip(virtualPath, options);
+#if defined(OPENYAMM_VITA_LOADER)
+    // On-demand clips need the same map-transition release bookkeeping as preloads.
+    if (instanceId != 0 && !m_persistentPreloadedClipKeys.contains(virtualPath))
+    {
+        m_mapPreloadedClipKeys.insert(virtualPath);
+    }
+#endif
+
+    if (instanceId == 0)
+    {
+        logAudioTraceResolvedSound(
+            "request",
+            pSource,
+            soundId,
+            virtualPath,
+            group,
+            position,
+            loop,
+            instanceId,
+            "failed");
+        return 0;
+    }
+
+    logAudioTraceResolvedSound(
+        "request",
+        pSource,
+        soundId,
+        virtualPath,
+        group,
+        position,
+        loop,
+        instanceId,
+        "queued");
+
+    if (isExclusiveGroup(group))
+    {
+        m_activeGroupInstanceIds[group] = instanceId;
+    }
+
+    return instanceId;
+}
+
+float GameAudioSystem::targetMusicVolume() const
+{
+    return MusicVolume * m_musicVolume;
+}
+
+float GameAudioSystem::playbackGroupVolume(PlaybackGroup group) const
+{
+    switch (group)
+    {
+    case PlaybackGroup::Music:
+        return targetMusicVolume();
+
+    case PlaybackGroup::Speech:
+    case PlaybackGroup::HouseSpeech:
+        return m_voiceVolume;
+
+    case PlaybackGroup::Ui:
+    case PlaybackGroup::World:
+    case PlaybackGroup::Walking:
+    case PlaybackGroup::HouseDoor:
+        return m_soundVolume;
+    }
+
+    return 1.0f;
+}
+
+bool GameAudioSystem::playCommonSound(
+    SoundId soundId,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    return playSound(static_cast<uint32_t>(soundId), group, position);
+}
+
+bool GameAudioSystem::playCommonSoundNonResettable(
+    SoundId soundId,
+    PlaybackGroup group,
+    const std::optional<WorldPosition> &position)
+{
+    const uint32_t soundKey = static_cast<uint32_t>(soundId);
+    const std::unordered_map<uint32_t, uint64_t>::const_iterator activeIt =
+        m_activeNonResettableSoundInstanceIds.find(soundKey);
+
+    if (activeIt != m_activeNonResettableSoundInstanceIds.end() && m_audioSystem.isClipPlaying(activeIt->second))
+    {
+        if (audioTraceEnabled())
+        {
+            logAudioTracePrefix("request", "playCommonSoundNonResettable");
+            std::cerr << " soundId=" << soundKey
+                      << " group=" << playbackGroupName(group)
+                      << " loop=0 result=skipped-active instance=" << activeIt->second;
+            logAudioTracePosition(position);
+            std::cerr << '\n';
+        }
+
+        return false;
+    }
+
+    m_activeNonResettableSoundInstanceIds.erase(soundKey);
+    const std::optional<std::string> virtualPath = m_soundCatalog.buildVirtualPath(soundKey);
+
+    if (!virtualPath)
+    {
+        logAudioTraceUnresolvedSound("playCommonSoundNonResettable", soundKey, group, position, false);
+        return false;
+    }
+
+    const uint64_t instanceId =
+        playResolvedSound(*virtualPath, group, position, false, soundKey, "playCommonSoundNonResettable");
+
+    if (instanceId == 0)
+    {
+        return false;
+    }
+
+    m_activeNonResettableSoundInstanceIds[soundKey] = instanceId;
+    return true;
+}
+
+bool GameAudioSystem::playSpeech(const Character &character, SpeechId speechId, uint32_t seed, uint32_t speakerKey)
+{
+    const SpeechReactionEntry *pReaction = m_speechReactionTable.find(speechId);
+
+    if (pReaction == nullptr)
+    {
+        return false;
+    }
+
+    if (pReaction->soundTypes.empty() || m_pCharacterVoiceTable == nullptr || m_pAssetFileSystem == nullptr)
+    {
+        return false;
+    }
+
+    const std::optional<uint32_t> voiceId = resolveCharacterVoiceId(character);
+
+    if (!voiceId)
+    {
+        return false;
+    }
+
+    const std::vector<uint32_t> soundIds = m_pCharacterVoiceTable->soundIdsForTypes(*voiceId, pReaction->soundTypes);
+
+    if (soundIds.empty())
+    {
+        return false;
+    }
+
+    const uint32_t pickSeed = seed == 0 ? SDL_GetTicks() : seed;
+    std::optional<uint32_t> selectedSoundId;
+    std::optional<std::string> selectedVirtualPath;
+
+    for (size_t offset = 0; offset < soundIds.size(); ++offset)
+    {
+        const uint32_t candidateSoundId = soundIds[(pickSeed + offset) % soundIds.size()];
+#if defined(OPENYAMM_VITA_LOADER)
+        // Immutable Vita archives were indexed at startup. A second PHYSFS
+        // existence check would acquire its shared archive lock on the game thread.
+        const std::optional<std::string> candidateVirtualPath =
+            m_soundCatalog.buildVirtualPath(engineSound(candidateSoundId), true);
+        if (!candidateVirtualPath)
+#else
+        const std::optional<std::string> candidateVirtualPath = m_soundCatalog.buildVirtualPath(candidateSoundId);
+
+        if (!candidateVirtualPath || !m_pAssetFileSystem->exists(*candidateVirtualPath))
+#endif
+        {
+            continue;
+        }
+
+        selectedSoundId = candidateSoundId;
+        selectedVirtualPath = candidateVirtualPath;
+        break;
+    }
+
+    if (!selectedSoundId || !selectedVirtualPath)
+    {
+        logAudioTraceUnresolvedSound("playSpeech", soundIds.front(), PlaybackGroup::Speech, std::nullopt, false);
+        return false;
+    }
+
+    if (speakerKey != 0)
+    {
+        const std::unordered_map<uint32_t, uint64_t>::const_iterator activeIt =
+            m_activeSpeechInstanceIds.find(speakerKey);
+
+        if (activeIt != m_activeSpeechInstanceIds.end())
+        {
+            if (audioTraceEnabled())
+            {
+                logAudioTracePrefix("stop-speech", "playSpeech");
+                std::cerr << " soundId=" << *selectedSoundId
+                          << " speechId=" << static_cast<uint32_t>(speechId)
+                          << " speakerKey=" << speakerKey
+                          << " stoppedInstance=" << activeIt->second << '\n';
+            }
+
+            m_audioSystem.stopClip(activeIt->second);
+        }
+    }
+
+    const uint64_t instanceId =
+        playResolvedSound(
+            *selectedVirtualPath,
+            PlaybackGroup::Speech,
+            std::nullopt,
+            false,
+            *selectedSoundId,
+            "playSpeech");
+
+    if (instanceId == 0)
+    {
+        return false;
+    }
+
+    if (speakerKey != 0)
+    {
+        m_activeSpeechInstanceIds[speakerKey] = instanceId;
+    }
+
+    return true;
+}
+
+const SpeechReactionEntry *GameAudioSystem::findSpeechReaction(SpeechId speechId) const
+{
+    return m_speechReactionTable.find(speechId);
+}
+
+bool GameAudioSystem::isExclusiveGroup(PlaybackGroup group)
+{
+    if (group == PlaybackGroup::Music)
+    {
+        return false;
+    }
+
+    return group == PlaybackGroup::Walking
+        || group == PlaybackGroup::HouseDoor
+        || group == PlaybackGroup::HouseSpeech;
+}
+
+void GameAudioSystem::stopSoundInstance(uint64_t instanceId)
+{
+    if (instanceId == 0)
+    {
+        return;
+    }
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("stop-instance", "stopSoundInstance");
+        std::cerr << " instance=" << instanceId << '\n';
+    }
+
+    m_audioSystem.stopClip(instanceId);
+}
+
+void GameAudioSystem::stopGroup(PlaybackGroup group)
+{
+    const std::unordered_map<PlaybackGroup, uint64_t>::iterator activeIt = m_activeGroupInstanceIds.find(group);
+
+    if (activeIt == m_activeGroupInstanceIds.end())
+    {
+        return;
+    }
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("stop-group", "stopGroup");
+        std::cerr << " group=" << playbackGroupName(group)
+                  << " instance=" << activeIt->second << '\n';
+    }
+
+    m_audioSystem.stopClip(activeIt->second);
+    m_activeGroupInstanceIds.erase(activeIt);
+}
+
+void GameAudioSystem::stopAllPlayback()
+{
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("stop-all", "stopAllPlayback");
+        std::cerr << " activeMusicTrack=" << m_activeMusicTrack
+                  << " activeMusicInstance=" << m_activeMusicInstanceId
+                  << " exclusiveGroups=" << m_activeGroupInstanceIds.size()
+                  << " speechInstances=" << m_activeSpeechInstanceIds.size() << '\n';
+    }
+
+    m_audioSystem.stopAll();
+    m_activeGroupInstanceIds.clear();
+    m_activeSpeechInstanceIds.clear();
+    m_activeNonResettableSoundInstanceIds.clear();
+    m_activeMusicTrack = 0;
+    m_pendingMusicTrack = 0;
+    m_activeMusicInstanceId = 0;
+    m_activeMusicVolume = 0.0f;
+    m_musicFadeVelocity = 0.0f;
+    m_backgroundMusicPaused = false;
+    evictUnusedMusicClips();
+}
+
+std::optional<uint32_t> GameAudioSystem::resolveCharacterVoiceId(const Character &character) const
+{
+    if (character.voiceId >= 0)
+    {
+        return static_cast<uint32_t>(character.voiceId);
+    }
+
+    if (m_pCharacterDollTable == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    const CharacterDollEntry *pCharacterEntry = m_pCharacterDollTable->getCharacter(character.characterDataId);
+
+    if (pCharacterEntry != nullptr)
+    {
+        return pCharacterEntry->defaultVoiceId;
+    }
+
+    return std::nullopt;
+}
+
+void GameAudioSystem::setBackgroundMusicTrack(int redbookTrack)
+{
+    if (Engine::VitaProfile::noAudio()) { return ; }
+
+    const int normalizedTrack = std::max(redbookTrack, 0);
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-set", "setBackgroundMusicTrack");
+        std::cerr << " track=" << normalizedTrack
+                  << " activeTrack=" << m_activeMusicTrack
+                  << " activeInstance=" << m_activeMusicInstanceId
+                  << " paused=" << (m_backgroundMusicPaused ? 1 : 0) << '\n';
+    }
+
+    if (normalizedTrack == 0)
+    {
+        stopBackgroundMusic();
+        return;
+    }
+
+    if (m_backgroundMusicPaused)
+    {
+        if (m_activeMusicTrack == normalizedTrack && m_activeMusicInstanceId != 0)
+        {
+            m_pendingMusicTrack = 0;
+            m_pendingMusicDecodeDelaySeconds = 0.0f;
+        }
+        else
+        {
+            m_pendingMusicTrack = normalizedTrack;
+            m_pendingMusicDecodeDelaySeconds = 0.0f;
+
+            if (!isBackgroundMusicTrackLoaded(normalizedTrack))
+            {
+                queueBackgroundMusicTrackDecode(normalizedTrack);
+            }
+        }
+
+        return;
+    }
+
+    if (m_activeMusicTrack == normalizedTrack && m_activeMusicInstanceId != 0)
+    {
+        m_pendingMusicTrack = 0;
+        m_pendingMusicDecodeDelaySeconds = 0.0f;
+        m_musicFadeVelocity = MusicFadeInSeconds > 0.0f ? (MusicVolume / MusicFadeInSeconds) : 0.0f;
+        m_backgroundMusicPaused = false;
+        return;
+    }
+
+    if (m_activeMusicInstanceId == 0)
+    {
+        if (isBackgroundMusicTrackLoaded(normalizedTrack))
+        {
+            startBackgroundMusicTrack(normalizedTrack);
+        }
+        else
+        {
+            m_pendingMusicTrack = normalizedTrack;
+            m_pendingMusicDecodeDelaySeconds = 0.0f;
+            queueBackgroundMusicTrackDecode(normalizedTrack);
+        }
+        return;
+    }
+
+    m_pendingMusicTrack = normalizedTrack;
+    m_pendingMusicDecodeDelaySeconds = 0.0f;
+
+    if (!isBackgroundMusicTrackLoaded(normalizedTrack))
+    {
+        queueBackgroundMusicTrackDecode(normalizedTrack);
+    }
+
+    m_musicFadeVelocity = MusicFadeOutSeconds > 0.0f ? (-MusicVolume / MusicFadeOutSeconds) : -MusicVolume;
+}
+
+void GameAudioSystem::stopBackgroundMusic()
+{
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-stop", "stopBackgroundMusic");
+        std::cerr << " activeTrack=" << m_activeMusicTrack
+                  << " activeInstance=" << m_activeMusicInstanceId << '\n';
+    }
+
+    m_pendingMusicTrack = 0;
+    m_pendingMusicDecodeDelaySeconds = 0.0f;
+    m_backgroundMusicPaused = false;
+
+    if (m_activeMusicInstanceId == 0)
+    {
+        m_activeMusicTrack = 0;
+        m_activeMusicVolume = 0.0f;
+        m_musicFadeVelocity = 0.0f;
+        return;
+    }
+
+    m_musicFadeVelocity = MusicFadeOutSeconds > 0.0f ? (-MusicVolume / MusicFadeOutSeconds) : -MusicVolume;
+}
+
+void GameAudioSystem::stopBackgroundMusicImmediate()
+{
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-stop-immediate", "stopBackgroundMusicImmediate");
+        std::cerr << " activeTrack=" << m_activeMusicTrack
+                  << " activeInstance=" << m_activeMusicInstanceId << '\n';
+    }
+
+    m_pendingMusicTrack = 0;
+    m_pendingMusicDecodeDelaySeconds = 0.0f;
+    m_backgroundMusicPaused = false;
+
+    if (m_activeMusicInstanceId != 0)
+    {
+        m_audioSystem.stopClip(m_activeMusicInstanceId);
+        m_audioSystem.clearQueuedAudio();
+    }
+
+    m_activeMusicTrack = 0;
+    m_activeMusicInstanceId = 0;
+    m_activeMusicVolume = 0.0f;
+    m_musicFadeVelocity = 0.0f;
+    evictUnusedMusicClips();
+}
+
+void GameAudioSystem::pauseBackgroundMusic()
+{
+    if (m_backgroundMusicPaused)
+    {
+        return;
+    }
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-pause", "pauseBackgroundMusic");
+        std::cerr << " activeTrack=" << m_activeMusicTrack
+                  << " activeInstance=" << m_activeMusicInstanceId << '\n';
+    }
+
+    m_backgroundMusicPaused = true;
+
+    if (m_activeMusicInstanceId != 0)
+    {
+        m_audioSystem.pauseClip(m_activeMusicInstanceId);
+    }
+}
+
+void GameAudioSystem::resumeBackgroundMusic()
+{
+    if (!m_backgroundMusicPaused)
+    {
+        return;
+    }
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-resume", "resumeBackgroundMusic");
+        std::cerr << " activeTrack=" << m_activeMusicTrack
+                  << " activeInstance=" << m_activeMusicInstanceId << '\n';
+    }
+
+    m_backgroundMusicPaused = false;
+
+    if (m_activeMusicInstanceId != 0)
+    {
+        m_audioSystem.resumeClip(m_activeMusicInstanceId);
+    }
+}
+
+int GameAudioSystem::currentBackgroundMusicTrack() const
+{
+    return m_activeMusicTrack;
+}
+
+bool GameAudioSystem::isBackgroundMusicPaused() const
+{
+    return m_backgroundMusicPaused;
+}
+
+bool GameAudioSystem::isBackgroundMusicTrackLoaded(int redbookTrack) const
+{
+    return m_loadedMusicClipKeys.find(redbookTrack) != m_loadedMusicClipKeys.end();
+}
+
+bool GameAudioSystem::queueBackgroundMusicTrackDecode(int redbookTrack)
+{
+    if (Engine::VitaProfile::noAudio()) { return false; }
+
+#if defined(OPENYAMM_VITA_LOADER)
+    // Temporary port limitation: whole-track float PCM does not fit the Vita heap.
+    // Restore music with a bounded streaming decoder, not a larger preload buffer.
+    std::cerr << "VITA: music track " << redbookTrack << " disabled pending streaming audio\n";
+    clearPendingBackgroundMusicTrack(redbookTrack);
+    return false;
+#endif
+    if (m_pAssetFileSystem == nullptr || redbookTrack <= 0 || isBackgroundMusicTrackLoaded(redbookTrack))
+    {
+        return false;
+    }
+
+    if (m_pendingMusicDecodeJob && m_pendingMusicDecodeJob->redbookTrack == redbookTrack)
+    {
+        return true;
+    }
+
+    if (m_pendingMusicDecodeJob)
+    {
+        return false;
+    }
+
+    const std::string virtualPath = "Music/" + std::to_string(redbookTrack) + ".mp3";
+    std::optional<std::vector<uint8_t>> musicBytes = m_pAssetFileSystem->readBinaryFile(virtualPath);
+
+    if (!musicBytes || musicBytes->empty())
+    {
+        std::cerr << "GameAudioSystem: missing music track " << virtualPath << '\n';
+        clearPendingBackgroundMusicTrack(redbookTrack);
+        return false;
+    }
+
+    PendingMusicDecodeJob job = {};
+    job.redbookTrack = redbookTrack;
+    job.clipKey = "music_track_" + std::to_string(redbookTrack);
+    job.samplesFuture = std::async(
+        std::launch::async,
+        [bytes = std::move(*musicBytes)]() -> std::vector<float>
+        {
+            std::vector<float> decodedSamples;
+
+            if (!decodeAudioSamplesFromBytes(bytes, decodedSamples))
+            {
+                decodedSamples.clear();
+            }
+
+            return decodedSamples;
+        });
+    m_pendingMusicDecodeJob = std::move(job);
+    return true;
+}
+
+void GameAudioSystem::updatePendingBackgroundMusicDecode()
+{
+    if (!m_pendingMusicDecodeJob)
+    {
+        return;
+    }
+
+    if (m_pendingMusicDecodeJob->samplesFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+    {
+        return;
+    }
+
+    const int redbookTrack = m_pendingMusicDecodeJob->redbookTrack;
+    const std::string clipKey = m_pendingMusicDecodeJob->clipKey;
+    std::vector<float> decodedSamples = m_pendingMusicDecodeJob->samplesFuture.get();
+    m_pendingMusicDecodeJob.reset();
+
+    if (decodedSamples.empty())
+    {
+        std::cerr << "GameAudioSystem: failed to decode music track Music/" << redbookTrack << ".mp3\n";
+        clearPendingBackgroundMusicTrack(redbookTrack);
+
+        return;
+    }
+
+    if (!m_audioSystem.registerClip(clipKey, std::move(decodedSamples)))
+    {
+        std::cerr << "GameAudioSystem: failed to register decoded music clip " << clipKey << '\n';
+        clearPendingBackgroundMusicTrack(redbookTrack);
+
+        return;
+    }
+
+    m_loadedMusicClipKeys[redbookTrack] = clipKey;
+
+    if (m_pendingMusicTrack == redbookTrack && m_activeMusicInstanceId == 0 && !m_backgroundMusicPaused)
+    {
+        m_pendingMusicTrack = 0;
+        m_pendingMusicDecodeDelaySeconds = 0.0f;
+        startBackgroundMusicTrack(redbookTrack);
+    }
+}
+
+bool GameAudioSystem::ensureBackgroundMusicTrackLoaded(int redbookTrack)
+{
+#if defined(OPENYAMM_VITA_LOADER)
+    clearPendingBackgroundMusicTrack(redbookTrack);
+    return false;
+#endif
+    if (m_pAssetFileSystem == nullptr || redbookTrack <= 0)
+    {
+        return false;
+    }
+
+    const auto loadedIt = m_loadedMusicClipKeys.find(redbookTrack);
+
+    if (loadedIt != m_loadedMusicClipKeys.end())
+    {
+        return true;
+    }
+
+    const std::string virtualPath = "Music/" + std::to_string(redbookTrack) + ".mp3";
+    const std::optional<std::vector<uint8_t>> musicBytes = m_pAssetFileSystem->readBinaryFile(virtualPath);
+
+    if (!musicBytes || musicBytes->empty())
+    {
+        std::cerr << "GameAudioSystem: missing music track " << virtualPath << '\n';
+        clearPendingBackgroundMusicTrack(redbookTrack);
+        return false;
+    }
+
+    std::vector<float> decodedSamples;
+
+    if (!decodeAudioSamplesFromBytes(*musicBytes, decodedSamples))
+    {
+        std::cerr << "GameAudioSystem: failed to decode music track " << virtualPath << '\n';
+        clearPendingBackgroundMusicTrack(redbookTrack);
+        return false;
+    }
+
+    const std::string clipKey = "music_track_" + std::to_string(redbookTrack);
+
+    if (!m_audioSystem.registerClip(clipKey, std::move(decodedSamples)))
+    {
+        std::cerr << "GameAudioSystem: failed to register decoded music clip " << clipKey << '\n';
+        clearPendingBackgroundMusicTrack(redbookTrack);
+        return false;
+    }
+
+    m_loadedMusicClipKeys[redbookTrack] = clipKey;
+    return true;
+}
+
+bool GameAudioSystem::startBackgroundMusicTrack(int redbookTrack)
+{
+    if (redbookTrack <= 0 || !ensureBackgroundMusicTrackLoaded(redbookTrack))
+    {
+        return false;
+    }
+
+    const std::string &clipKey = m_loadedMusicClipKeys[redbookTrack];
+    Engine::AudioSystem::PlaybackOptions options = {};
+    options.loop = true;
+    options.volume = 0.0f;
+    const uint64_t instanceId = m_audioSystem.playClip(clipKey, options);
+
+    if (instanceId == 0)
+    {
+        if (audioTraceEnabled())
+        {
+            logAudioTracePrefix("music-start", "startBackgroundMusicTrack");
+            std::cerr << " track=" << redbookTrack
+                      << " path=\"" << clipKey << "\" result=failed instance=0\n";
+        }
+
+        return false;
+    }
+
+    if (audioTraceEnabled())
+    {
+        logAudioTracePrefix("music-start", "startBackgroundMusicTrack");
+        std::cerr << " track=" << redbookTrack
+                  << " path=\"" << clipKey << "\" result=queued instance=" << instanceId << '\n';
+    }
+
+    m_activeMusicTrack = redbookTrack;
+    m_activeMusicInstanceId = instanceId;
+    m_activeMusicVolume = 0.0f;
+    m_musicFadeVelocity = MusicFadeInSeconds > 0.0f ? (MusicVolume / MusicFadeInSeconds) : MusicVolume;
+    m_backgroundMusicPaused = false;
+    m_audioSystem.setClipVolume(m_activeMusicInstanceId, m_activeMusicVolume);
+    evictUnusedMusicClips();
+    return true;
+}
+
+void GameAudioSystem::evictUnusedMusicClips()
+{
+    const int pendingDecodeTrack = m_pendingMusicDecodeJob ? m_pendingMusicDecodeJob->redbookTrack : 0;
+
+    for (auto iterator = m_loadedMusicClipKeys.begin(); iterator != m_loadedMusicClipKeys.end();)
+    {
+        const int track = iterator->first;
+
+        if (track == m_activeMusicTrack || track == m_pendingMusicTrack || track == pendingDecodeTrack)
+        {
+            ++iterator;
+            continue;
+        }
+
+        m_audioSystem.releaseClip(iterator->second);
+        iterator = m_loadedMusicClipKeys.erase(iterator);
+    }
+}
+
+void GameAudioSystem::clearPendingBackgroundMusicTrack(int redbookTrack)
+{
+    if (m_pendingMusicTrack != redbookTrack)
+    {
+        return;
+    }
+
+    m_pendingMusicTrack = 0;
+    m_pendingMusicDecodeDelaySeconds = 0.0f;
+}
+}

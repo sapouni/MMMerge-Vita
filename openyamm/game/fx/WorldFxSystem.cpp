@@ -1,0 +1,864 @@
+#include "game/fx/WorldFxSystem.h"
+
+#include "game/app/GameSession.h"
+#include "game/data/GameDataRepository.h"
+#include "game/fx/ParticleRecipes.h"
+#include "game/gameplay/GameplayFxService.h"
+#include "game/party/PartySpellSystem.h"
+#include "game/party/SpellIds.h"
+#include "game/tables/ObjectTable.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace OpenYAMM::Game
+{
+namespace
+{
+constexpr float ParticleUpdateStepSeconds = 1.0f / 30.0f;
+constexpr float MaxParticleUpdateAccumulationSeconds = 0.25f;
+constexpr float DefaultProjectileTrailCooldownSeconds = 1.0f / 30.0f;
+constexpr float HangingProjectileTrailCooldownSeconds = 2.0f / 128.0f;
+constexpr float SparksProjectileTrailCooldownSeconds = 0.10f;
+constexpr float ProjectileFxVisualSizeScale = 1.25f;
+constexpr float PartySpellFxRingRadius = 28.0f;
+constexpr float ImpactLightRadiusScale = 1.18f;
+constexpr float ImpactLightIntensityScale = 1.35f;
+constexpr uint32_t CannonballPseudoSpellId = 136;
+
+uint32_t makeAbgr(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha)
+{
+    return (static_cast<uint32_t>(alpha) << 24)
+        | (static_cast<uint32_t>(blue) << 16)
+        | (static_cast<uint32_t>(green) << 8)
+        | static_cast<uint32_t>(red);
+}
+
+bool isCannonballProjectile(const GameplayProjectilePresentationState &projectile)
+{
+    return projectile.spellId == CannonballPseudoSpellId
+        || projectile.objectName == "Cannonball"
+        || projectile.objectSpriteName == "CANNBL";
+}
+
+bool isSparksSpellProjectile(const GameplayProjectilePresentationState &projectile)
+{
+    return projectile.spellId >= 0
+        && spellIdFromValue(static_cast<uint32_t>(projectile.spellId)) == SpellId::Sparks;
+}
+
+uint32_t partySpellFxColorAbgr(const PartySpellCastResult &result)
+{
+    if (result.effectKind == PartySpellCastEffectKind::CharacterRestore
+        || result.effectKind == PartySpellCastEffectKind::PartyRestore)
+    {
+        return makeAbgr(192, 255, 192, 224);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::LightBolt, SpellId::DivineIntervention))
+    {
+        return makeAbgr(255, 240, 180, 224);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::Reanimate, SpellId::SoulDrinker))
+    {
+        return makeAbgr(180, 112, 255, 224);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::CureWeakness, SpellId::PowerCure))
+    {
+        return makeAbgr(132, 224, 120, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::Telepathy, SpellId::Enslave))
+    {
+        return makeAbgr(224, 132, 255, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::DetectLife, SpellId::Resurrection))
+    {
+        return makeAbgr(208, 192, 255, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::Stun, SpellId::MassDistortion))
+    {
+        return makeAbgr(180, 220, 132, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::Awaken, SpellId::LloydsBeacon))
+    {
+        return makeAbgr(160, 224, 255, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::WizardEye, SpellId::Starburst))
+    {
+        return makeAbgr(255, 228, 132, 220);
+    }
+
+    if (spellIdInRange(result.spellId, SpellId::TorchLight, SpellId::Incinerate))
+    {
+        return makeAbgr(255, 144, 72, 224);
+    }
+
+    return makeAbgr(255, 255, 255, 208);
+}
+
+uint32_t withScaledAlpha(uint32_t colorAbgr, float alphaScale)
+{
+    const float clampedScale = std::clamp(alphaScale, 0.0f, 1.0f);
+    const uint8_t red = static_cast<uint8_t>(colorAbgr & 0xffu);
+    const uint8_t green = static_cast<uint8_t>((colorAbgr >> 8) & 0xffu);
+    const uint8_t blue = static_cast<uint8_t>((colorAbgr >> 16) & 0xffu);
+    const uint8_t alpha = static_cast<uint8_t>(
+        std::clamp(
+            static_cast<int>(std::lround(static_cast<float>((colorAbgr >> 24) & 0xffu) * clampedScale)),
+            0,
+            255));
+
+    return makeAbgr(red, green, blue, alpha);
+}
+
+float impactLightDurationSeconds(
+    FxRecipes::ProjectileRecipe recipe,
+    const GameplayProjectileImpactPresentationState &impact)
+{
+    const float presentationSeconds =
+        impact.lifetimeTicks > 0
+            ? static_cast<float>(impact.lifetimeTicks) / 128.0f
+            : 0.0f;
+    float recipeSeconds = 0.68f;
+
+    switch (recipe)
+    {
+    case FxRecipes::ProjectileRecipe::Blaster:
+        recipeSeconds = 0.25f;
+        break;
+    case FxRecipes::ProjectileRecipe::Fireball:
+    case FxRecipes::ProjectileRecipe::DragonBreath:
+        recipeSeconds = 0.92f;
+        break;
+    case FxRecipes::ProjectileRecipe::MeteorShower:
+    case FxRecipes::ProjectileRecipe::Starburst:
+    case FxRecipes::ProjectileRecipe::Implosion:
+        recipeSeconds = 1.08f;
+        break;
+    case FxRecipes::ProjectileRecipe::ToxicCloud:
+        recipeSeconds = 1.0f;
+        break;
+    case FxRecipes::ProjectileRecipe::None:
+        recipeSeconds = 0.0f;
+        break;
+    default:
+        break;
+    }
+
+    return std::max(recipeSeconds, presentationSeconds);
+}
+
+float impactLightRadius(FxRecipes::ProjectileRecipe recipe)
+{
+    const float recipeGlowRadius = FxRecipes::projectileRecipeGlowRadius(recipe);
+
+    switch (recipe)
+    {
+    case FxRecipes::ProjectileRecipe::Blaster:
+        return 256.0f;
+    case FxRecipes::ProjectileRecipe::MeteorShower:
+        return std::max(recipeGlowRadius, 128.0f) * ImpactLightRadiusScale;
+    case FxRecipes::ProjectileRecipe::Starburst:
+        return std::max(recipeGlowRadius, 136.0f) * ImpactLightRadiusScale;
+    case FxRecipes::ProjectileRecipe::Implosion:
+        return std::max(recipeGlowRadius, 152.0f) * ImpactLightRadiusScale;
+    case FxRecipes::ProjectileRecipe::None:
+        return 0.0f;
+    default:
+        return std::max(recipeGlowRadius, 96.0f) * ImpactLightRadiusScale;
+    }
+}
+
+bool shouldTriggerPartySpellSparkles(PartySpellCastEffectKind effectKind)
+{
+    return effectKind == PartySpellCastEffectKind::CharacterRestore
+        || effectKind == PartySpellCastEffectKind::PartyRestore;
+}
+
+bool shouldTriggerPartySpellBuffAura(PartySpellCastEffectKind effectKind)
+{
+    return effectKind == PartySpellCastEffectKind::PartyBuff
+        || effectKind == PartySpellCastEffectKind::CharacterBuff;
+}
+
+float projectileTrailCooldownSeconds(FxRecipes::ProjectileRecipe recipe)
+{
+    switch (recipe)
+    {
+        case FxRecipes::ProjectileRecipe::Sparks:
+            return SparksProjectileTrailCooldownSeconds;
+
+        default:
+            if (FxRecipes::projectileRecipeUsesHangingProjectileTrail(recipe))
+            {
+                return HangingProjectileTrailCooldownSeconds;
+            }
+
+            return DefaultProjectileTrailCooldownSeconds;
+    }
+}
+
+bool projectileRecipeEmitsTrailParticles(int spellIdValue, FxRecipes::ProjectileRecipe recipe)
+{
+    if (recipe == FxRecipes::ProjectileRecipe::Blaster
+        || recipe == FxRecipes::ProjectileRecipe::Sparks)
+    {
+        return false;
+    }
+
+    const FxRecipes::ProjectileFxRecipe &fxRecipe = FxRecipes::projectileFxRecipe(recipe);
+
+    if (fxRecipe.trailPrimitive == FxRecipes::ProjectileFxPrimitive::RenderSprite)
+    {
+        return false;
+    }
+
+    if (fxRecipe.trailPrimitive == FxRecipes::ProjectileFxPrimitive::None
+        && (fxRecipe.impactPrimitive != FxRecipes::ProjectileFxPrimitive::None
+            || fxRecipe.mobileLightRadius > 0.0f
+            || !fxRecipe.renderProjectileBillboard))
+    {
+        return false;
+    }
+
+    const SpellId spellId = spellIdFromValue(static_cast<uint32_t>(spellIdValue));
+    return spellId != SpellId::MindBlast
+        && spellId != SpellId::PsychicShock
+        && spellId != SpellId::Harm
+        && spellId != SpellId::ToxicCloud
+        && spellId != SpellId::Incinerate;
+}
+}
+
+void WorldFxSystem::reset()
+{
+    m_particleUpdateAccumulatorSeconds = 0.0f;
+    m_particleSystem.reset();
+    m_glowBillboards.clear();
+    m_lightEmitters.clear();
+    m_contactShadows.clear();
+    m_segmentProjectiles.clear();
+    m_projectileTrailStates.clear();
+    m_persistentImpactLights.clear();
+    m_seenImpactIds.clear();
+}
+
+void WorldFxSystem::beginFrame()
+{
+    m_particleSystem.beginFrame();
+}
+
+void WorldFxSystem::updateParticles(float deltaSeconds, bool paused)
+{
+    beginFrame();
+
+    if (paused)
+    {
+        return;
+    }
+
+    m_particleUpdateAccumulatorSeconds =
+        std::min(MaxParticleUpdateAccumulationSeconds, m_particleUpdateAccumulatorSeconds + deltaSeconds);
+
+    while (m_particleUpdateAccumulatorSeconds >= ParticleUpdateStepSeconds)
+    {
+        m_particleSystem.update(ParticleUpdateStepSeconds);
+        m_particleUpdateAccumulatorSeconds -= ParticleUpdateStepSeconds;
+    }
+}
+
+void WorldFxSystem::syncProjectileFx(GameSession &session, float deltaSeconds, bool refreshSpatialFx)
+{
+    updateProjectileTrailCooldowns(deltaSeconds);
+    updatePersistentImpactLights(deltaSeconds);
+    syncProjectileTrails(session, refreshSpatialFx);
+    syncProjectileImpacts(session);
+    emitPersistentImpactLights(refreshSpatialFx);
+    cleanupSeenProjectileImpactIds(session);
+}
+
+void WorldFxSystem::triggerPartySpellFx(const PartySpellCastResult &result)
+{
+    if (!result.succeeded() || !result.hasSourcePoint)
+    {
+        return;
+    }
+
+    const uint32_t sparkleColorAbgr = partySpellFxColorAbgr(result);
+    const size_t affectedCount = result.affectedCharacterIndices.size();
+    const size_t sparkleCount = std::max<size_t>(1, affectedCount == 0 ? 1 : affectedCount);
+
+    for (size_t sparkleIndex = 0; sparkleIndex < sparkleCount; ++sparkleIndex)
+    {
+        const float angleRadians =
+            (6.28318530717958647692f * static_cast<float>(sparkleIndex)) / static_cast<float>(sparkleCount);
+        const float offsetRadius = sparkleCount > 1 ? PartySpellFxRingRadius : 0.0f;
+        const float sparkleX = result.sourceX + std::cos(angleRadians) * offsetRadius;
+        const float sparkleY = result.sourceY + std::sin(angleRadians) * offsetRadius;
+        const float sparkleZ =
+            result.sourceZ + (sparkleCount > 1 ? static_cast<float>(sparkleIndex % 2) * 10.0f : 0.0f);
+        const float sparkleRadius = result.effectKind == PartySpellCastEffectKind::PartyRestore ? 30.0f : 24.0f;
+        const uint32_t sparkleSeed =
+            (result.spellId * 2654435761u) ^ static_cast<uint32_t>(sparkleIndex * 2246822519u);
+
+        if (shouldTriggerPartySpellBuffAura(result.effectKind))
+        {
+            FxRecipes::spawnActorBuffParticles(
+                m_particleSystem,
+                result.spellId,
+                sparkleSeed,
+                sparkleX,
+                sparkleY,
+                sparkleZ - 44.0f,
+                148.0f,
+                std::cos(angleRadians),
+                std::sin(angleRadians));
+        }
+        else if (shouldTriggerPartySpellSparkles(result.effectKind))
+        {
+            FxRecipes::spawnBuffSparkles(
+                m_particleSystem,
+                sparkleSeed,
+                sparkleX,
+                sparkleY,
+                sparkleZ,
+                sparkleRadius,
+                sparkleColorAbgr);
+        }
+    }
+}
+
+void WorldFxSystem::setShadowsEnabled(bool enabled)
+{
+    m_shadowsEnabled = enabled;
+
+    if (!m_shadowsEnabled)
+    {
+        m_contactShadows.clear();
+    }
+}
+
+void WorldFxSystem::spawnActorDebuffFx(
+    uint32_t spellId,
+    uint32_t seed,
+    float x,
+    float y,
+    float z,
+    float actorHeight,
+    float frontDirectionX,
+    float frontDirectionY)
+{
+    FxRecipes::spawnActorDebuffParticles(
+        m_particleSystem,
+        spellId,
+        seed,
+        x,
+        y,
+        z,
+        actorHeight,
+        frontDirectionX,
+        frontDirectionY);
+}
+
+void WorldFxSystem::spawnActorBuffFx(
+    uint32_t spellId,
+    uint32_t seed,
+    float x,
+    float y,
+    float z,
+    float actorHeight,
+    float frontDirectionX,
+    float frontDirectionY)
+{
+    FxRecipes::spawnActorBuffParticles(
+        m_particleSystem,
+        spellId,
+        seed,
+        x,
+        y,
+        z,
+        actorHeight,
+        frontDirectionX,
+        frontDirectionY);
+}
+
+void WorldFxSystem::clearSpatialFx()
+{
+    m_glowBillboards.clear();
+    m_lightEmitters.clear();
+    m_contactShadows.clear();
+    m_segmentProjectiles.clear();
+}
+
+void WorldFxSystem::addContactShadow(float x, float y, float z, float radius, uint32_t colorAbgr)
+{
+    if (!m_shadowsEnabled)
+    {
+        return;
+    }
+
+    WorldFxContactShadow shadow = {};
+    shadow.x = x;
+    shadow.y = y;
+    shadow.z = z;
+    shadow.radius = radius;
+    shadow.colorAbgr = colorAbgr;
+    m_contactShadows.push_back(shadow);
+}
+
+void WorldFxSystem::addSegmentProjectile(
+    float startX,
+    float startY,
+    float startZ,
+    float endX,
+    float endY,
+    float endZ,
+    float width,
+    uint32_t colorAbgr)
+{
+    if (width <= 0.0f)
+    {
+        return;
+    }
+
+    WorldFxSegmentProjectile segment = {};
+    segment.startX = startX;
+    segment.startY = startY;
+    segment.startZ = startZ;
+    segment.endX = endX;
+    segment.endY = endY;
+    segment.endZ = endZ;
+    segment.width = width;
+    segment.colorAbgr = colorAbgr;
+    m_segmentProjectiles.push_back(segment);
+}
+
+void WorldFxSystem::addGlowBillboard(
+    float x,
+    float y,
+    float z,
+    float radius,
+    uint32_t colorAbgr,
+    bool renderVisibleBillboard)
+{
+    if (!renderVisibleBillboard)
+    {
+        return;
+    }
+
+    WorldFxGlowBillboard billboard = {};
+    billboard.x = x;
+    billboard.y = y;
+    billboard.z = z;
+    billboard.radius = radius;
+    billboard.colorAbgr = colorAbgr;
+    billboard.renderVisibleBillboard = renderVisibleBillboard;
+    m_glowBillboards.push_back(billboard);
+}
+
+void WorldFxSystem::addLightEmitter(
+    float x,
+    float y,
+    float z,
+    float radius,
+    uint32_t colorAbgr,
+    int16_t sectorId,
+    RenderLightKind kind,
+    uint32_t stableId,
+    bool important)
+{
+    WorldFxLightEmitter light = {};
+    light.x = x;
+    light.y = y;
+    light.z = z;
+    light.radius = radius;
+    light.colorAbgr = colorAbgr;
+    light.sectorId = sectorId;
+    light.kind = kind;
+    light.stableId = stableId;
+    light.important = important;
+    m_lightEmitters.push_back(light);
+}
+
+ParticleSystem &WorldFxSystem::particles()
+{
+    return m_particleSystem;
+}
+
+const ParticleSystem &WorldFxSystem::particles() const
+{
+    return m_particleSystem;
+}
+
+const std::vector<WorldFxGlowBillboard> &WorldFxSystem::glowBillboards() const
+{
+    return m_glowBillboards;
+}
+
+const std::vector<WorldFxContactShadow> &WorldFxSystem::contactShadows() const
+{
+    return m_contactShadows;
+}
+
+const std::vector<WorldFxSegmentProjectile> &WorldFxSystem::segmentProjectiles() const
+{
+    return m_segmentProjectiles;
+}
+
+void WorldFxSystem::updateProjectileTrailCooldowns(float deltaSeconds)
+{
+    for (std::unordered_map<uint32_t, ProjectileFxTrailState>::iterator it = m_projectileTrailStates.begin();
+        it != m_projectileTrailStates.end();
+        ++it)
+    {
+        it->second.cooldownSeconds = std::max(0.0f, it->second.cooldownSeconds - deltaSeconds);
+    }
+}
+
+void WorldFxSystem::updatePersistentImpactLights(float deltaSeconds)
+{
+    if (deltaSeconds <= 0.0f)
+    {
+        return;
+    }
+
+    for (std::unordered_map<uint32_t, PersistentImpactLight>::iterator it = m_persistentImpactLights.begin();
+        it != m_persistentImpactLights.end();)
+    {
+        it->second.elapsedSeconds += deltaSeconds;
+
+        if (it->second.elapsedSeconds >= it->second.durationSeconds)
+        {
+            it = m_persistentImpactLights.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void WorldFxSystem::emitPersistentImpactLights(bool refreshSpatialFx)
+{
+    if (!refreshSpatialFx)
+    {
+        return;
+    }
+
+    for (const std::pair<const uint32_t, PersistentImpactLight> &entry : m_persistentImpactLights)
+    {
+        const PersistentImpactLight &light = entry.second;
+
+        if (light.radius <= 0.0f || light.durationSeconds <= 0.0f)
+        {
+            continue;
+        }
+
+        const float fade = std::clamp(1.0f - light.elapsedSeconds / light.durationSeconds, 0.0f, 1.0f);
+
+        if (fade <= 0.0f)
+        {
+            continue;
+        }
+
+        addLightEmitter(
+            light.x,
+            light.y,
+            light.z,
+            light.radius,
+            withScaledAlpha(light.colorAbgr, fade * ImpactLightIntensityScale),
+            light.sectorId,
+            RenderLightKind::Impact,
+            entry.first);
+    }
+}
+
+void WorldFxSystem::syncProjectileTrails(GameSession &session, bool refreshSpatialFx)
+{
+    const ObjectTable &objectTable = session.data().objectTable();
+    const std::vector<GameplayProjectilePresentationState> &projectiles =
+        session.gameplayFxService().activeProjectilePresentationStates();
+    std::unordered_set<uint32_t> activeProjectileIds;
+    activeProjectileIds.reserve(projectiles.size());
+
+    for (const GameplayProjectilePresentationState &projectile : projectiles)
+    {
+        activeProjectileIds.insert(projectile.projectileId);
+
+        if (isSparksSpellProjectile(projectile))
+        {
+            if (refreshSpatialFx)
+            {
+                constexpr FxRecipes::ProjectileRecipe recipe = FxRecipes::ProjectileRecipe::Sparks;
+                const uint32_t colorAbgr = FxRecipes::projectileRecipeColorAbgr(recipe);
+                const float glowRadius = FxRecipes::projectileRecipeGlowRadius(recipe);
+                const float projectileCenterZ =
+                    projectile.z + FxRecipes::projectileRecipeAnchorOffset(
+                        recipe,
+                        projectile.radius,
+                        projectile.height);
+
+                if (glowRadius > 0.0f)
+                {
+                    addLightEmitter(
+                        projectile.x,
+                        projectile.y,
+                        projectileCenterZ,
+                        glowRadius,
+                        makeAbgr(
+                            static_cast<uint8_t>(colorAbgr & 0xffu),
+                            static_cast<uint8_t>((colorAbgr >> 8) & 0xffu),
+                            static_cast<uint8_t>((colorAbgr >> 16) & 0xffu),
+                            255),
+                        projectile.sectorId,
+                        RenderLightKind::Projectile,
+                        projectile.projectileId);
+                }
+            }
+
+            continue;
+        }
+
+        const ObjectEntry *pObjectEntry = objectTable.get(projectile.objectDescriptionId);
+
+        if (pObjectEntry == nullptr || isCannonballProjectile(projectile))
+        {
+            continue;
+        }
+
+        const FxRecipes::ProjectileRecipe recipe = FxRecipes::classifyProjectileRecipe(
+            projectile.spellId,
+            projectile.objectName,
+            projectile.objectSpriteName,
+            pObjectEntry->flags);
+        const float projectileCenterZ =
+            projectile.z + FxRecipes::projectileRecipeAnchorOffset(
+                recipe,
+                projectile.radius,
+                projectile.height);
+
+        if (projectileRecipeEmitsTrailParticles(projectile.spellId, recipe))
+        {
+            const float velocityLength = std::sqrt(
+                projectile.velocityX * projectile.velocityX
+                + projectile.velocityY * projectile.velocityY
+                + projectile.velocityZ * projectile.velocityZ);
+            float directionX = 0.0f;
+            float directionY = 0.0f;
+            float directionZ = 1.0f;
+
+            if (velocityLength > 0.001f)
+            {
+                directionX = projectile.velocityX / velocityLength;
+                directionY = projectile.velocityY / velocityLength;
+                directionZ = projectile.velocityZ / velocityLength;
+            }
+
+            const float backOffset = FxRecipes::projectileRecipeBackOffset(recipe, projectile.radius);
+            const float anchoredX = projectile.x - directionX * backOffset;
+            const float anchoredY = projectile.y - directionY * backOffset;
+            FxRecipes::ProjectileSpawnContext trailContext = {};
+            trailContext.projectileId = projectile.projectileId;
+            trailContext.objectFlags = pObjectEntry->flags;
+            trailContext.radius = projectile.radius;
+            trailContext.height = projectile.height;
+            trailContext.spellId = projectile.spellId;
+            trailContext.objectName = projectile.objectName;
+            trailContext.spriteName = projectile.objectSpriteName;
+            trailContext.x = anchoredX;
+            trailContext.y = anchoredY;
+            trailContext.z = projectileCenterZ;
+            trailContext.velocityX = projectile.velocityX;
+            trailContext.velocityY = projectile.velocityY;
+            trailContext.velocityZ = projectile.velocityZ;
+            ProjectileFxTrailState &trailState = m_projectileTrailStates[projectile.projectileId];
+
+            if (!projectile.isSettled && trailState.cooldownSeconds <= 0.0f)
+            {
+                trailState.cooldownSeconds = projectileTrailCooldownSeconds(recipe);
+                const FxRecipes::ProjectileFxRecipe &fxRecipe = FxRecipes::projectileFxRecipe(recipe);
+
+                if (fxRecipe.trailPrimitive == FxRecipes::ProjectileFxPrimitive::SegmentProjectile)
+                {
+                    if (trailState.hasPreviousPosition)
+                    {
+                        addSegmentProjectile(
+                            trailState.previousX,
+                            trailState.previousY,
+                            trailState.previousZ,
+                            anchoredX,
+                            anchoredY,
+                            projectileCenterZ,
+                            20.0f * ProjectileFxVisualSizeScale,
+                            fxRecipe.colorAbgr);
+                    }
+
+                    trailState.previousX = anchoredX;
+                    trailState.previousY = anchoredY;
+                    trailState.previousZ = projectileCenterZ;
+                    trailState.hasPreviousPosition = true;
+                }
+                else if (fxRecipe.trailPrimitive == FxRecipes::ProjectileFxPrimitive::HangingTrail)
+                {
+                    FxRecipes::ProjectileSegmentSpawnContext segmentContext = {};
+                    segmentContext.projectileId = projectile.projectileId;
+                    segmentContext.hasPreviousPosition = trailState.hasPreviousPosition;
+                    segmentContext.previousX = trailState.previousX;
+                    segmentContext.previousY = trailState.previousY;
+                    segmentContext.previousZ = trailState.previousZ;
+                    segmentContext.currentX = anchoredX;
+                    segmentContext.currentY = anchoredY;
+                    segmentContext.currentZ = projectileCenterZ;
+                    segmentContext.velocityX = projectile.velocityX;
+                    segmentContext.velocityY = projectile.velocityY;
+                    segmentContext.velocityZ = projectile.velocityZ;
+                    FxRecipes::spawnHangingProjectileTrailParticles(m_particleSystem, segmentContext, recipe);
+                    trailState.previousX = anchoredX;
+                    trailState.previousY = anchoredY;
+                    trailState.previousZ = projectileCenterZ;
+                    trailState.hasPreviousPosition = true;
+                }
+                else if (fxRecipe.trailPrimitive == FxRecipes::ProjectileFxPrimitive::Stun)
+                {
+                    FxRecipes::ProjectileSegmentSpawnContext segmentContext = {};
+                    segmentContext.projectileId = projectile.projectileId;
+                    segmentContext.hasPreviousPosition = trailState.hasPreviousPosition;
+                    segmentContext.previousX = trailState.previousX;
+                    segmentContext.previousY = trailState.previousY;
+                    segmentContext.previousZ = trailState.previousZ;
+                    segmentContext.currentX = anchoredX;
+                    segmentContext.currentY = anchoredY;
+                    segmentContext.currentZ = projectileCenterZ;
+                    segmentContext.velocityX = projectile.velocityX;
+                    segmentContext.velocityY = projectile.velocityY;
+                    segmentContext.velocityZ = projectile.velocityZ;
+                    FxRecipes::spawnStunTrailParticles(m_particleSystem, segmentContext, recipe);
+                    trailState.previousX = anchoredX;
+                    trailState.previousY = anchoredY;
+                    trailState.previousZ = projectileCenterZ;
+                    trailState.hasPreviousPosition = true;
+                }
+                else
+                {
+                    FxRecipes::spawnProjectileTrailParticles(m_particleSystem, trailContext, recipe);
+                }
+            }
+        }
+
+        const float glowRadius = FxRecipes::projectileRecipeGlowRadius(recipe);
+
+        if (refreshSpatialFx && glowRadius > 0.0f)
+        {
+            const uint32_t lightColor = FxRecipes::projectileRecipeLightColorAbgr(recipe);
+            addLightEmitter(
+                projectile.x,
+                projectile.y,
+                projectileCenterZ,
+                glowRadius,
+                makeAbgr(
+                    static_cast<uint8_t>(lightColor & 0xffu),
+                    static_cast<uint8_t>((lightColor >> 8) & 0xffu),
+                    static_cast<uint8_t>((lightColor >> 16) & 0xffu),
+                    255),
+                projectile.sectorId,
+                RenderLightKind::Projectile,
+                projectile.projectileId);
+        }
+    }
+
+    for (std::unordered_map<uint32_t, ProjectileFxTrailState>::iterator it = m_projectileTrailStates.begin();
+        it != m_projectileTrailStates.end();)
+    {
+        if (activeProjectileIds.find(it->first) == activeProjectileIds.end())
+        {
+            it = m_projectileTrailStates.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void WorldFxSystem::syncProjectileImpacts(GameSession &session)
+{
+    const std::vector<GameplayProjectileImpactPresentationState> &impacts =
+        session.gameplayFxService().activeProjectileImpactPresentationStates();
+
+    for (const GameplayProjectileImpactPresentationState &impact : impacts)
+    {
+        const FxRecipes::ProjectileRecipe recipe = FxRecipes::classifyProjectileRecipe(
+            impact.sourceSpellId,
+            impact.sourceObjectName,
+            impact.sourceObjectSpriteName,
+            impact.sourceObjectFlags);
+
+        if (!FxRecipes::projectileRecipeUsesDedicatedImpactFx(recipe))
+        {
+            continue;
+        }
+
+        const bool isNewImpact = m_seenImpactIds.insert(impact.effectId).second;
+
+        if (isNewImpact)
+        {
+            FxRecipes::ImpactSpawnContext impactContext = {};
+            impactContext.recipe = recipe;
+            impactContext.objectName = impact.objectName;
+            impactContext.spriteName = impact.objectSpriteName;
+            impactContext.x = impact.x;
+            impactContext.y = impact.y;
+            impactContext.z = impact.z;
+            FxRecipes::spawnImpactParticles(m_particleSystem, impactContext);
+        }
+
+        const float lightRadius = impactLightRadius(recipe);
+        const float lightDuration = impactLightDurationSeconds(recipe, impact);
+
+        if (isNewImpact && lightRadius > 0.0f && lightDuration > 0.0f)
+        {
+            PersistentImpactLight light = {};
+            light.x = impact.x;
+            light.y = impact.y;
+            light.z = impact.z + 16.0f;
+            light.radius = lightRadius;
+            light.durationSeconds = lightDuration;
+            light.colorAbgr = FxRecipes::projectileRecipeImpactColorAbgr(recipe);
+            light.sectorId = impact.sectorId;
+            m_persistentImpactLights[impact.effectId] = light;
+        }
+    }
+}
+
+void WorldFxSystem::cleanupSeenProjectileImpactIds(GameSession &session)
+{
+    std::unordered_set<uint32_t> activeImpactIds;
+    const std::vector<GameplayProjectileImpactPresentationState> &impacts =
+        session.gameplayFxService().activeProjectileImpactPresentationStates();
+    activeImpactIds.reserve(impacts.size());
+
+    for (const GameplayProjectileImpactPresentationState &impact : impacts)
+    {
+        activeImpactIds.insert(impact.effectId);
+    }
+
+    for (std::unordered_set<uint32_t>::iterator it = m_seenImpactIds.begin(); it != m_seenImpactIds.end();)
+    {
+        if (activeImpactIds.find(*it) == activeImpactIds.end())
+        {
+            it = m_seenImpactIds.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+}

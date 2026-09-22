@@ -1,0 +1,49 @@
+MMerge Vita 01.06 R2 — new game bubble, same game code
+
+WHY THIS PACKAGE
+You confirmed that MMerge Art Check displays both the background and logo.
+It uses exactly the same artwork/template bytes as 01.06. The images work;
+the failure is specific to the old game's LiveArea entry. This package uses
+a fresh game identity (MMVITA001) instead of the old OYAM00001 entry.
+It is the full 01.06 game, not another artwork-only test app.
+
+INSTALL
+1. Close the game. Your prepared archives should already be in:
+     ux0:data/openyamm/assets/engine.zip
+     ux0:data/openyamm/assets/worlds/mmmerge.zip
+     ux0:data/openyamm/assets/worlds/mm6.zip
+     ux0:data/openyamm/assets/worlds/mm7.zip
+     ux0:data/openyamm/assets/worlds/mm8.zip
+   If they are there, leave them alone: no large transfer is needed.
+   If they are still in ux0:app/OYAM00001/assets, keep your backup and move
+   that assets folder to ux0:data/openyamm/assets before launching R2.
+2. Transfer MMerge-Vita-01.06-R2.vpk, leave USB mode and install in VitaShell.
+3. Open the NEW MMerge Vita bubble. Its page should show the painting and
+   logo, as the test app did. Launch it and load an existing save.
+4. Keep the old game bubble until this new one launches and finds your saves.
+   The separate MMerge Art Check bubble is only a diagnostic and can be removed.
+
+The new game installs to ux0:app/MMVITA001. Both game bubbles use the same
+ux0:data/openyamm saves, settings, logs and caches. No saves/settings are copied
+or reset. The old app is not overwritten. Do not delete ux0:data/openyamm.
+Future app-folder updates for this identity must target MMVITA001, not OYAM00001.
+If startup reports missing archives, recheck the five data paths above.
+If you previously customized [assets] root in settings.ini, use an empty
+root= to enable automatic data-folder detection.
+
+WHAT CHANGED
+Only the title ID in param.sfo, build-info.json and installation notes. eboot.bin, game.self,
+libmain.so, shaders, runtime files, UI, defaults and all four artwork files
+are byte-for-byte identical to 01.06. No new game build or FPS change.
+FPS cap and Triangle quick-spell assignment from 01.06 are retained.
+Normal/capture state follows your saved settings; diagnostics remain optional.
+
+New users: requires kubridge loaded and libshacccg installed, as before.
+Prepared game data is not included. See https://github.com/pjasicek/openyamm
+for the upstream project and data layout. Raw GOG files are not these archives.
+
+TEST STATUS
+Host package checks passed. The old 01.06 game and the separate art checker
+were confirmed by you on hardware. The full game under MMVITA001 is newly
+supplied and has not yet been tested. No system database edits or direct
+device installation were performed by the assistant.

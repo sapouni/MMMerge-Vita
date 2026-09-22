@@ -1,0 +1,326 @@
+#include "doctest/doctest.h"
+
+#include "engine/AssetFileSystem.h"
+#include "engine/ImageAssetLoader.h"
+#include "game/maps/MapAssetLoader.h"
+#include "game/tables/MergedBaseTables.h"
+#include "game/tables/MonsterTable.h"
+#include "game/tables/SpriteTables.h"
+
+#include <array>
+#include <filesystem>
+
+namespace
+{
+std::vector<std::string> makeMonsterStatsRow(
+    int id,
+    const std::string &name,
+    bool bloodSplat,
+    const std::string &attack1Missile,
+    int attack2Chance,
+    const std::string &attack2Missile,
+    int spell1Chance,
+    const std::string &spell1Descriptor)
+{
+    std::vector<std::string> row(38);
+    row[0] = std::to_string(id);
+    row[1] = name;
+    row[2] = name + "Pic";
+    row[3] = "1";
+    row[4] = "10";
+    row[5] = "0";
+    row[6] = "10";
+    row[7] = "0";
+    row[8] = bloodSplat ? "1" : "0";
+    row[10] = "short";
+    row[11] = "normal";
+    row[12] = "0";
+    row[13] = "100";
+    row[14] = "30";
+    row[17] = "Physical";
+    row[18] = "1d4";
+    row[19] = attack1Missile;
+    row[20] = std::to_string(attack2Chance);
+    row[21] = "Physical";
+    row[22] = "1d4";
+    row[23] = attack2Missile;
+    row[24] = std::to_string(spell1Chance);
+    row[25] = spell1Descriptor;
+    return row;
+}
+
+std::vector<std::string> makeMonsterPresentationRow(
+    int id,
+    const std::string &internalName,
+    const std::array<std::string, 8> &spriteNames)
+{
+    std::vector<std::string> row(19, "0");
+    row[0] = std::to_string(id);
+    row[1] = internalName;
+
+    for (size_t spriteIndex = 0; spriteIndex < spriteNames.size(); ++spriteIndex)
+    {
+        row[11 + spriteIndex] = spriteNames[spriteIndex];
+    }
+
+    return row;
+}
+}
+
+TEST_CASE("monster stats parser preserves blood splat on death flag")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+
+    REQUIRE(table.loadStatsFromRows({
+        makeMonsterStatsRow(1, "Lizardman", true, "", 0, "", 0, ""),
+        makeMonsterStatsRow(98, "Wisp", false, "", 0, "", 0, "")
+    }));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pLizardman = table.findStatsById(1);
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pWisp = table.findStatsById(98);
+
+    REQUIRE(pLizardman != nullptr);
+    REQUIRE(pWisp != nullptr);
+    CHECK(pLizardman->bloodSplatOnDeath);
+    CHECK_FALSE(pWisp->bloodSplatOnDeath);
+}
+
+TEST_CASE("monster stats parser treats plain numeric damage like OE Nd1 damage")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+    std::vector<std::string> row = makeMonsterStatsRow(1, "FlatDamage", true, "", 0, "", 0, "");
+    row[18] = "5";
+    row[22] = "3";
+
+    REQUIRE(table.loadStatsFromRows({row}));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pMonster = table.findStatsById(1);
+
+    REQUIRE(pMonster != nullptr);
+    CHECK_EQ(pMonster->attack1Damage.diceRolls, 5);
+    CHECK_EQ(pMonster->attack1Damage.diceSides, 1);
+    CHECK_EQ(pMonster->attack1Damage.bonus, 0);
+    CHECK_EQ(pMonster->attack2Damage.diceRolls, 3);
+    CHECK_EQ(pMonster->attack2Damage.diceSides, 1);
+    CHECK_EQ(pMonster->attack2Damage.bonus, 0);
+}
+
+TEST_CASE("monster stats parser classifies melee mixed and ranged attack styles")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+
+    REQUIRE(table.loadStatsFromRows({
+        makeMonsterStatsRow(12, "Melee", true, "", 0, "", 0, ""),
+        makeMonsterStatsRow(5, "Mixed", true, "", 35, "arrow", 0, ""),
+        makeMonsterStatsRow(16, "Ranged", true, "arrow", 0, "", 0, "")
+    }));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pMelee = table.findStatsById(12);
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pMixed = table.findStatsById(5);
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pRanged = table.findStatsById(16);
+
+    REQUIRE(pMelee != nullptr);
+    REQUIRE(pMixed != nullptr);
+    REQUIRE(pRanged != nullptr);
+    CHECK(pMelee->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::MeleeOnly);
+    CHECK(pMixed->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::MixedMeleeRanged);
+    CHECK(pRanged->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::Ranged);
+}
+
+TEST_CASE("monster stats parser recognizes supported elemental missile tokens")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+
+    REQUIRE(table.loadStatsFromRows({
+        makeMonsterStatsRow(71, "Dragon Flightleader", true, "Cold", 0, "", 0, ""),
+        makeMonsterStatsRow(72, "Great Wyrm", true, "Elec", 0, "", 0, ""),
+        makeMonsterStatsRow(112, "Emerald Dragon", true, "Ener", 0, "", 0, "")
+    }));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pFlightleader = table.findStatsById(71);
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pGreatWyrm = table.findStatsById(72);
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pEmeraldDragon = table.findStatsById(112);
+
+    REQUIRE(pFlightleader != nullptr);
+    REQUIRE(pGreatWyrm != nullptr);
+    REQUIRE(pEmeraldDragon != nullptr);
+    CHECK(pFlightleader->attack1HasMissile);
+    CHECK(pGreatWyrm->attack1HasMissile);
+    CHECK(pEmeraldDragon->attack1HasMissile);
+    CHECK(pFlightleader->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::Ranged);
+    CHECK(pGreatWyrm->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::Ranged);
+    CHECK(pEmeraldDragon->attackStyle == OpenYAMM::Game::MonsterTable::MonsterAttackStyle::Ranged);
+}
+
+TEST_CASE("monster stats applies supported kind flags from bolster monster type data")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+    std::vector<std::string> row = makeMonsterStatsRow(52, "Vampire", true, "", 0, "", 0, "");
+
+    REQUIRE(table.loadStatsFromRows({row}));
+
+    OpenYAMM::Game::MergedBolsterMonsterTable bolsterMonsterTable = {};
+    REQUIRE(bolsterMonsterTable.loadFromRows({
+        {
+            "#",
+            "Note",
+            "Type",
+            "ExtraType",
+            "Creed",
+            "Gender",
+            "Style",
+            "Pref magic",
+            "No bounty hunt",
+            "New ranged attacks",
+            "New spells",
+            "Size affects HP",
+            "Replicate",
+            "New summons",
+            "Summon Id",
+            "Extra points",
+            "Max HP Boost (%)",
+        },
+        {
+            "52", "Vampire", "Undead", "Peasant,NoArena,Titan", "Dark", "", "", "", "-", "-", "-", "-", "-", "-",
+            "", "", "",
+        },
+    }));
+    REQUIRE(table.applyKindFlagsFromBolsterMonsterTable(bolsterMonsterTable));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pMonster = table.findStatsById(52);
+
+    REQUIRE(pMonster != nullptr);
+    CHECK(pMonster->hasKind(OpenYAMM::Game::MonsterKind::Undead));
+    CHECK(pMonster->hasKind(OpenYAMM::Game::MonsterKind::Peasant));
+    CHECK(pMonster->hasKind(OpenYAMM::Game::MonsterKind::NoArena));
+    CHECK(pMonster->hasKind(OpenYAMM::Game::MonsterKind::Titan));
+    CHECK_FALSE(pMonster->hasKind(OpenYAMM::Game::MonsterKind::NoCorpse));
+    CHECK_FALSE(pMonster->hasKind(OpenYAMM::Game::MonsterKind::Dragon));
+}
+
+TEST_CASE("monster stats applies no corpse kind from bolster monster extra type data")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+    std::vector<std::string> row = makeMonsterStatsRow(499, "Devil Captain", true, "", 0, "", 0, "");
+
+    REQUIRE(table.loadStatsFromRows({row}));
+
+    OpenYAMM::Game::MergedBolsterMonsterTable bolsterMonsterTable = {};
+    REQUIRE(bolsterMonsterTable.loadFromRows({
+        {
+            "#",
+            "Note",
+            "Type",
+            "ExtraType",
+            "Creed",
+            "Gender",
+            "Style",
+            "Pref magic",
+            "No bounty hunt",
+            "New ranged attacks",
+            "New spells",
+            "Size affects HP",
+            "Replicate",
+            "New summons",
+            "Summon Id",
+            "Extra points",
+            "Max HP Boost (%)",
+        },
+        {"499", "Devil Captain", "Demon", "NoCorpse", "Dark", "", "", "", "-", "-", "-", "-", "-", "-", "", "", ""},
+    }));
+    REQUIRE(table.applyKindFlagsFromBolsterMonsterTable(bolsterMonsterTable));
+
+    const OpenYAMM::Game::MonsterTable::MonsterStatsEntry *pMonster = table.findStatsById(499);
+
+    REQUIRE(pMonster != nullptr);
+    CHECK(pMonster->hasKind(OpenYAMM::Game::MonsterKind::NoCorpse));
+}
+
+TEST_CASE("monster death drop parser maps multiple drops to monster id")
+{
+    OpenYAMM::Game::MonsterTable table = {};
+
+    REQUIRE(table.loadDeathDropsFromRows({
+        {"MonsterID", "MonsterName", "ItemID", "ItemName", "ChancePercent", "Description"},
+        {"85", "Dire Wolf Yearling", "201", "Wolf's Eye", "20", "Reagent drop"},
+        {"85", "Dire Wolf Yearling", "633", "Dire Wolf Pelt", "35", "Bounty drop"},
+        {"86", "Dire Wolf", "633", "Dire Wolf Pelt", "0", "Disabled drop"}
+    }));
+
+    const std::vector<OpenYAMM::Game::MonsterTable::MonsterDeathDropEntry> &drops =
+        table.deathDropsForMonsterId(85);
+    const std::vector<OpenYAMM::Game::MonsterTable::MonsterDeathDropEntry> &disabledDrops =
+        table.deathDropsForMonsterId(86);
+
+    REQUIRE_EQ(drops.size(), 2);
+    CHECK_EQ(drops[0].itemId, 201u);
+    CHECK_EQ(drops[0].chancePercent, 20);
+    CHECK_EQ(drops[1].itemId, 633u);
+    CHECK_EQ(drops[1].chancePercent, 35);
+    CHECK(disabledDrops.empty());
+}
+
+TEST_CASE("dynamic bounty monsters load their sprite frame families")
+{
+    const std::filesystem::path sourceRoot = OPENYAMM_SOURCE_DIR;
+    OpenYAMM::Engine::AssetFileSystem assetFileSystem;
+    REQUIRE(assetFileSystem.initialize(
+        sourceRoot,
+        sourceRoot / "assets_dev",
+        OpenYAMM::Engine::AssetScaleTier::X1));
+
+    OpenYAMM::Game::MonsterTable monsterTable;
+    REQUIRE(monsterTable.loadEntriesFromRows({
+        makeMonsterPresentationRow(
+            218,
+            "Cleric Sun B",
+            {"m176s", "m176w", "m176a", "m176a", "m176n", "m176d", "m176x", "m176f"}),
+        makeMonsterPresentationRow(
+            242,
+            "Elemental Light B",
+            {"m208w", "m208w", "m208a", "m208a", "m208n", "m208d", "null", "m208w"})
+    }));
+    OpenYAMM::Game::SpriteFrameTable reloadedMapSpriteFrameTable;
+    CHECK_FALSE(reloadedMapSpriteFrameTable.findFrameIndexBySpriteName("m176s").has_value());
+    CHECK_FALSE(reloadedMapSpriteFrameTable.findFrameIndexBySpriteName("m208w").has_value());
+
+    REQUIRE(OpenYAMM::Game::ensureMonsterSpriteFramesLoaded(
+        assetFileSystem,
+        monsterTable,
+        218,
+        reloadedMapSpriteFrameTable));
+    CHECK(reloadedMapSpriteFrameTable.findFrameIndexBySpriteName("m176s").has_value());
+
+    REQUIRE(OpenYAMM::Game::ensureMonsterSpriteFramesLoaded(
+        assetFileSystem,
+        monsterTable,
+        242,
+        reloadedMapSpriteFrameTable));
+    CHECK(reloadedMapSpriteFrameTable.findFrameIndexBySpriteName("m176s").has_value());
+    CHECK(reloadedMapSpriteFrameTable.findFrameIndexBySpriteName("m208w").has_value());
+
+    OpenYAMM::Engine::DirectoryAssetPathCache directoryAssetPathsByPath;
+    OpenYAMM::Engine::AssetPathLookupCache assetPathByKey;
+
+    for (const std::string &spriteName : {std::string("m176s"), std::string("m208w")})
+    {
+        const std::optional<uint16_t> frameIndex =
+            reloadedMapSpriteFrameTable.findFrameIndexBySpriteName(spriteName);
+        REQUIRE(frameIndex.has_value());
+        const OpenYAMM::Game::SpriteFrameEntry *pFrame =
+            reloadedMapSpriteFrameTable.getFrame(*frameIndex, 0);
+        REQUIRE(pFrame != nullptr);
+        const OpenYAMM::Game::ResolvedSpriteTexture resolvedTexture =
+            OpenYAMM::Game::SpriteFrameTable::resolveTexture(*pFrame, 0);
+        const std::optional<std::string> spritePath = OpenYAMM::Engine::findImageAssetPath(
+            assetFileSystem,
+            "Data/sprites",
+            resolvedTexture.textureName,
+            directoryAssetPathsByPath,
+            assetPathByKey);
+        REQUIRE(spritePath.has_value());
+        const std::optional<std::vector<uint8_t>> spriteBytes = assetFileSystem.readBinaryFile(*spritePath);
+        REQUIRE(spriteBytes.has_value());
+        CHECK_FALSE(spriteBytes->empty());
+    }
+}

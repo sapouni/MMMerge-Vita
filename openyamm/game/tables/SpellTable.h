@@ -1,0 +1,55 @@
+#pragma once
+
+#include <cstdint>
+#include <atomic>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace OpenYAMM::Game
+{
+struct SpellEntry
+{
+    int id = 0;
+    std::string name;
+    std::string normalizedName;
+    std::string schoolName;
+    std::string shortName;
+    std::string description;
+    std::string normalText;
+    std::string expertText;
+    std::string masterText;
+    std::string grandmasterText;
+    std::string statsText;
+    int normalManaCost = 0;
+    int expertManaCost = 0;
+    int masterManaCost = 0;
+    int grandmasterManaCost = 0;
+    int normalRecoveryTicks = 0;
+    int expertRecoveryTicks = 0;
+    int masterRecoveryTicks = 0;
+    int grandmasterRecoveryTicks = 0;
+    int effectSoundId = 0;
+    int displayObjectId = 0;
+    int impactDisplayObjectId = 0;
+    int damageBase = 0;
+    int damageDiceSides = 0;
+};
+
+class SpellTable
+{
+public:
+    bool loadFromRows(const std::vector<std::vector<std::string>> &rows);
+    const SpellEntry *findById(int id) const;
+    const SpellEntry *findByName(const std::string &name) const;
+    const std::vector<SpellEntry> &entries() const;
+    uint32_t revision() const { return m_revision; }
+
+private:
+    inline static std::atomic<uint32_t> s_nextRevision{1};
+    uint32_t m_revision = 0;
+    std::vector<SpellEntry> m_entries;
+    std::unordered_map<int, size_t> m_entryIndexById;
+    std::unordered_map<std::string, size_t> m_entryIndexByNormalizedName;
+};
+}

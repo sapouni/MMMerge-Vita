@@ -1,0 +1,122 @@
+# OpenYAMM Vita guide. ASCII text; retain [intro] and [1] through [16].
+# First line after each heading is its title. Blank lines separate paragraphs.
+# Reopen the Guide / New Game after editing. Long topics continue onto more pages.
+
+[intro]
+Three worlds. One adventure.
+MMMerge brings Might and Magic VI, VII and VIII together. OpenYAMM recreates them in a shared engine inspired by Merge.
+
+Choose a starting world, create your party and explore. Other worlds remain available later.
+
+New or returning? The Guide covers Vita controls, combat, potions and useful basics.
+
+[1]
+Your first adventure
+MMMerge connects Might and Magic VI, VII and VIII into one adventure. OpenYAMM recreates these games in a shared engine inspired by Merge. Some rules differ from playing the originals separately.
+
+MM6 begins in Enroth, MM7 in Antagarich, and MM8 in Jadame. You can visit the other worlds later with the same party.
+
+Talk to people, explore nearby areas and check your journal. Not every enemy is meant to be fought immediately. Retreat and return stronger.
+
+[2]
+Vita controls
+Left stick: move. Right stick: look. X: interact.
+Square: attack. Circle: quick spell. Triangle: jump.
+R: inventory. L: inspect the crosshair target.
+Select: turn-based combat. Start: game menu.
+
+Default D-pad shortcuts: up opens Map, down opens Rest, left opens Spellbook, right selects the next character. Menu navigation is unchanged. Change these on Vita Settings > Controls > D-pad.
+
+Hold L before a shortcut: L+up flies up, L+down flies down, L+left lands, L+right opens Map. Flying still requires an active Fly spell. L+X interacts, L+Circle casts, L+Square attacks, L+Triangle opens Rest and L+R opens party overview. L alone inspects. L+Select stays reserved for a diagnostic marker.
+
+The default L layer works in real-time play, even with enemies nearby; in turn-based combat L stays inspect. Choose Always on the L shortcuts page to enable combinations in both modes, or Inspect only to disable combinations. All bindings require closing and reopening the app to apply. They use the port's standard keyboard action mapping.
+
+In menus, move the pointer with the left stick and click with X, or use touch. In inventory, Circle inspects or applies a held item.
+
+[3]
+Turn-based combat
+Press Select to switch between real-time and turn-based combat. Turn-based combat gives you time to choose an action when a party member is ready.
+
+Watch the active character and combat phase: enemies also take turns, and movement is limited. Attack with Square or use a spell. During the movement phase, an attack can end movement first. Use Start for the game menu when taking a break.
+
+[4]
+Fighting and targeting
+Face your target with the crosshair. L inspects it; Square attacks. X is for interacting with doors, people and objects, not your dedicated attack button.
+
+Weapons and spells have recovery time: a character cannot act continuously. Use doorways and distance to avoid fighting a whole crowd at once. Look for useful items on defeated enemies.
+
+[5]
+Spells and quick spells
+Learn the required magic skill and spells. Open the spellbook from the HUD, choose a spell and follow its target prompt. Some spells need a party member or an item as target.
+
+For each character, open the spellbook (D-pad left by default). Press X once on a learned spell to select it, then Triangle to set it as that character's quick spell. Circle inspects spells here. Double-clicking the spell casts it immediately instead of assigning it. Close the spellbook and press Circle to cast that character's assigned spell. Pressing Triangle again with the same spell selected clears the assignment. Circle falls back to an attack in gameplay when no quick spell is assigned. Check spell points, skill mastery and recovery time if casting fails.
+
+[6]
+Inventory and equipment
+Press R to open inventory. Select a character to manage their belongings. Use X to pick up and place an item; use the equipment slots on the character figure to equip it.
+
+With empty hands, Circle inspects an item. Unidentified items hide details; broken equipment may need repair. A suitable skill or shop service can help.
+
+[7]
+Make a basic potion
+Put a reagent and an empty potion bottle in the same inventory.
+
+1. Pick up the reagent with X.
+2. Move the pointer over the empty bottle.
+3. Press Circle to mix them.
+
+The ingredient is consumed and the bottle becomes a potion. Only potion reagents work: not every plant-like item is an ingredient.
+
+[8]
+Using and mixing items
+Pick up a potion and click the intended character's portrait or figure to use it. Inspect it first to learn its effects.
+
+Circle with an item held applies it to the inventory item under the pointer. Advanced potion mixtures require Alchemy and may fail or cause harm. Save before experiments. Keep useful bottles and read recipe notes.
+
+[9]
+Recruiting and followers
+Talk to people and look for Join or Hire topics. Adventurers can become playable party members; other followers offer services or bonuses. They are different kinds of help.
+
+Read the offer and any fee before accepting. Not everyone can be recruited. Check available adventurers at the Adventurers' Inn where offered.
+
+[10]
+Levels, skills and teachers
+Visit a training hall when you have enough experience to gain levels. Learn useful skills and spend skill points in the character screen.
+
+Skill level and mastery are different: seek teachers for Expert, Master and Grandmaster training where your class allows it. Promotions can unlock further progress. Read a teacher's requirements before spending points.
+
+[11]
+Health, conditions and rest
+Watch every party member's health, spell points and conditions. Someone who cannot act may be unconscious or affected by a condition.
+
+Rest somewhere safe and keep food available. Nearby enemies can prevent resting. Potions, spells and temple services can help; different conditions need different cures. Do not assume one healing potion fixes everything.
+
+[12]
+Quests, maps and notes
+Read dialogue and check your quest journal for goals and clues. Use the HUD's map and journal controls to review where you are going.
+
+Notes and books may explain recipes, teachers or locations. A quest can require talking to the right person again after its main task. Keep quest items until you understand their purpose.
+
+[13]
+Shops, gold and banks
+Shops sell different kinds of goods and may identify or repair items. Selling spare equipment frees inventory space and earns gold.
+
+Read prices before buying, learning a skill or hiring help. Banks store gold and have deposit / withdraw dialogues. Use the Vita keyboard for an amount or save name. Confirm accepts your entry; Cancel backs out without applying it.
+
+[14]
+Doors, chests and traps
+Use the crosshair and X for doors, switches and containers. Look around carefully: some switches are small or control something elsewhere.
+
+Chests can be trapped. Disarm Trap and other utility skills are worth learning, not just weapon skills. Watch your party's condition after opening a dangerous chest. Save before exploring an unfamiliar dungeon.
+
+[15]
+Travel and saving
+Coaches, boats, world exits and magic offer different ways to travel. Routes can depend on schedules or progress. Travelling to another world does not require starting a new party.
+
+Use Start to reach Save / Load. Keep several saves before major journeys and dangerous areas. Choose a slot carefully so one mistake does not replace your only safe save.
+
+[16]
+Taverns and Arcomage
+Visit taverns for conversation, services and, where offered, Arcomage. Read the local offer: not every tavern provides the same options.
+
+In Arcomage, inspect cards and watch your resources, tower and wall. Cards can build your position or damage the opponent. Use the game's card text and controls rather than spending resources blindly.

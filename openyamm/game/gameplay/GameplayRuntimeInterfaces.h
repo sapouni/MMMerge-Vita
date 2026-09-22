@@ -1,0 +1,825 @@
+#pragma once
+
+#include "game/events/EventRuntime.h"
+#include "game/gameplay/GameMechanics.h"
+#include "game/gameplay/GameplayWorldInteraction.h"
+#include "game/party/Party.h"
+#include "game/party/SkillData.h"
+#include "game/tables/MonsterTable.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace OpenYAMM::Game
+{
+class MergedBolsterMonsterTable;
+struct GameplayMinimapState;
+struct GameplayMinimapLineState;
+struct GameplayMinimapMarkerState;
+struct GameplayInputFrame;
+struct PartySpellCastResult;
+
+struct GameplayWorldUiRenderState
+{
+    bool canRenderHudOverlays = false;
+    bool renderGameplayHud = true;
+    bool renderActorInspectOverlay = true;
+    bool renderDebugFallbacks = false;
+};
+
+struct GameplayWorldMovementFrameDiagnostics
+{
+    static constexpr size_t MaxTimerEventIds = 8;
+
+    bool collected = false;
+    uint64_t totalNanoseconds = 0;
+    uint64_t controllerNanoseconds = 0;
+    uint64_t sceneAdvanceNanoseconds = 0;
+    uint64_t actorColliderBuildNanoseconds = 0;
+    uint64_t partyUpdateNanoseconds = 0;
+    uint64_t movementDriverNanoseconds = 0;
+    uint64_t movementInputNanoseconds = 0;
+    uint64_t movementCollisionNanoseconds = 0;
+    uint64_t movementTraceNanoseconds = 0;
+    uint64_t movementContactsNanoseconds = 0;
+    uint64_t movementConsequencesNanoseconds = 0;
+    uint64_t partyRecoveryNanoseconds = 0;
+    uint64_t partyTimedStateNanoseconds = 0;
+    uint64_t partySpellStateNanoseconds = 0;
+    uint64_t partyEffectsNanoseconds = 0;
+    uint64_t timerNanoseconds = 0;
+    uint64_t timerEventExecutionNanoseconds = 0;
+    uint64_t timerEventApplyNanoseconds = 0;
+    uint64_t partyEventApplyNanoseconds = 0;
+    uint64_t pressurePlateNanoseconds = 0;
+    uint64_t boundaryTransitionNanoseconds = 0;
+    uint64_t actorQueueAndContactsNanoseconds = 0;
+    uint32_t movementStepCount = 0;
+    uint32_t timerEventsFired = 0;
+    size_t storedTimerEventIdCount = 0;
+    std::array<uint16_t, MaxTimerEventIds> timerEventIds = {};
+};
+
+struct GameplayChestItemState
+{
+    InventoryItem item = {};
+    uint32_t itemId = 0;
+    uint32_t quantity = 0;
+    uint32_t goldAmount = 0;
+    uint32_t goldRollCount = 0;
+    bool isGold = false;
+    uint8_t width = 1;
+    uint8_t height = 1;
+    uint8_t gridX = 0;
+    uint8_t gridY = 0;
+};
+
+struct GameplayChestViewState
+{
+    uint32_t chestId = 0;
+    uint16_t chestTypeId = 0;
+    uint16_t flags = 0;
+    uint8_t gridWidth = 0;
+    uint8_t gridHeight = 0;
+    std::vector<GameplayChestItemState> items;
+    std::vector<GameplayChestItemState> hiddenItems;
+};
+
+struct GameplayCorpseViewState
+{
+    bool fromSummonedMonster = false;
+    uint32_t sourceIndex = 0;
+    std::string title;
+    std::vector<GameplayChestItemState> items;
+};
+
+struct GameplayWorldItemInspectState
+{
+    InventoryItem item = {};
+    uint32_t goldAmount = 0;
+    bool isGold = false;
+};
+
+struct GameplayRuntimeActorState
+{
+    int16_t monsterId = 0;
+    int32_t mm9RudeId = 0;
+    uint32_t mm9SourceObjectIndex = 0;
+    float preciseX = 0.0f;
+    float preciseY = 0.0f;
+    float preciseZ = 0.0f;
+    uint16_t radius = 0;
+    uint16_t height = 0;
+    bool isDead = false;
+    bool isInvisible = false;
+    bool hostileToParty = false;
+    bool hasDetectedParty = false;
+    bool combatTargetingParty = false;
+};
+
+struct GameplayCombatFeedbackEvent
+{
+    size_t actorIndex = 0;
+    int damage = 0;
+    int experience = 0;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float height = 0.0f;
+    bool killed = false;
+};
+
+enum class GameplayActorControlMode : uint8_t
+{
+    None = 0,
+    Charm = 1,
+    Berserk = 2,
+    Enslaved = 3,
+    ControlUndead = 4,
+    Reanimated = 5,
+};
+
+enum class GameplayActorAiType : uint8_t
+{
+    Suicide = 0,
+    Wimp = 1,
+    Normal = 2,
+    Aggressive = 3,
+};
+
+enum class GameplayActorAttackAbility : uint8_t
+{
+    Attack1 = 0,
+    Attack2 = 1,
+    Spell1 = 2,
+    Spell2 = 3,
+};
+
+struct GameplayActorInspectState
+{
+    std::string displayName;
+    std::string previewTextureName;
+    size_t uniqueActorIndex = static_cast<size_t>(-1);
+    int16_t monsterId = 0;
+    int16_t previewPaletteId = 0;
+    int previewYOffset = -40;
+    int currentHp = 0;
+    int maxHp = 0;
+    int armorClass = 0;
+    MonsterTable::MonsterStatsEntry::DamageProfile attack1Damage = {};
+    MonsterTable::MonsterStatsEntry::DamageProfile attack2Damage = {};
+    int attack2Chance = 0;
+    bool hasSpell1 = false;
+    bool hasSpell2 = false;
+    std::string spell1Name;
+    std::string spell2Name;
+    uint32_t spell1SkillLevel = 0;
+    SkillMastery spell1SkillMastery = SkillMastery::None;
+    uint32_t spell2SkillLevel = 0;
+    SkillMastery spell2SkillMastery = SkillMastery::None;
+    bool isDead = false;
+    float slowRemainingSeconds = 0.0f;
+    float stunRemainingSeconds = 0.0f;
+    float paralyzeRemainingSeconds = 0.0f;
+    float fearRemainingSeconds = 0.0f;
+    float shrinkRemainingSeconds = 0.0f;
+    float darkGraspRemainingSeconds = 0.0f;
+    float dayOfProtectionRemainingSeconds = 0.0f;
+    float hourOfPowerRemainingSeconds = 0.0f;
+    float painReflectionRemainingSeconds = 0.0f;
+    float hammerhandsRemainingSeconds = 0.0f;
+    float hasteRemainingSeconds = 0.0f;
+    float shieldRemainingSeconds = 0.0f;
+    float stoneskinRemainingSeconds = 0.0f;
+    float blessRemainingSeconds = 0.0f;
+    float fateRemainingSeconds = 0.0f;
+    float heroismRemainingSeconds = 0.0f;
+    std::string pendingSelfBuffName;
+    GameplayActorControlMode controlMode = GameplayActorControlMode::None;
+};
+
+struct GameplayActorSpellEffectState
+{
+    float slowRemainingSeconds = 0.0f;
+    float slowMoveMultiplier = 1.0f;
+    float slowRecoveryMultiplier = 1.0f;
+    float stunRemainingSeconds = 0.0f;
+    float paralyzeRemainingSeconds = 0.0f;
+    float fearRemainingSeconds = 0.0f;
+    float blindRemainingSeconds = 0.0f;
+    float controlRemainingSeconds = 0.0f;
+    GameplayActorControlMode controlMode = GameplayActorControlMode::None;
+    float shrinkRemainingSeconds = 0.0f;
+    float shrinkDamageMultiplier = 1.0f;
+    float shrinkArmorClassMultiplier = 1.0f;
+    float armorClassHalvedRemainingSeconds = 0.0f;
+    float darkGraspRemainingSeconds = 0.0f;
+    float dayOfProtectionRemainingSeconds = 0.0f;
+    int dayOfProtectionPower = 0;
+    float hourOfPowerRemainingSeconds = 0.0f;
+    int hourOfPowerPower = 0;
+    float painReflectionRemainingSeconds = 0.0f;
+    float hammerhandsRemainingSeconds = 0.0f;
+    int hammerhandsPower = 0;
+    float hasteRemainingSeconds = 0.0f;
+    float shieldRemainingSeconds = 0.0f;
+    float stoneskinRemainingSeconds = 0.0f;
+    int stoneskinPower = 0;
+    float blessRemainingSeconds = 0.0f;
+    int blessPower = 0;
+    float fateRemainingSeconds = 0.0f;
+    int fatePower = 0;
+    float heroismRemainingSeconds = 0.0f;
+    int heroismPower = 0;
+    bool hostileToParty = false;
+    bool hasDetectedParty = false;
+};
+
+struct GameplayActorTargetPolicyState
+{
+    int16_t monsterId = 0;
+    int16_t relationMonsterId = 0;
+    uint32_t group = 0;
+    float preciseZ = 0.0f;
+    uint16_t height = 0;
+    bool hostileToParty = false;
+    GameplayActorControlMode controlMode = GameplayActorControlMode::None;
+};
+
+struct GameplayActorTargetPolicyResult
+{
+    bool canTarget = false;
+    int relationToTarget = 0;
+    float engagementRange = 0.0f;
+};
+
+struct GameplayActorAttackChoiceResult
+{
+    GameplayActorAttackAbility ability = GameplayActorAttackAbility::Attack1;
+    uint32_t nextDecisionCount = 0;
+};
+
+struct GameplayActorAttackConstraintState
+{
+    bool attack1IsRanged = false;
+    bool attack2IsRanged = false;
+    bool blindActive = false;
+    bool darkGraspActive = false;
+    bool rangedCommitAllowed = true;
+};
+
+struct GameplayPartySpellProjectileRequest
+{
+    uint32_t casterMemberIndex = 0;
+    uint32_t spellId = 0;
+    uint32_t skillLevel = 0;
+    SkillMastery skillMastery = SkillMastery::None;
+    int damage = 0;
+    CombatDamageType damageType = CombatDamageType::Physical;
+    float sourceX = 0.0f;
+    float sourceY = 0.0f;
+    float sourceZ = 0.0f;
+    float targetX = 0.0f;
+    float targetY = 0.0f;
+    float targetZ = 0.0f;
+    uint32_t effectSoundIdOverride = 0;
+    uint32_t impactSoundIdOverride = 0;
+    bool turnBasedPendingAction = false;
+};
+
+enum class GameplayProjectileVisualMode
+{
+    SpriteBillboard,
+    FxOnly,
+};
+
+struct GameplayProjectilePresentationState
+{
+    uint32_t projectileId = 0;
+    uint16_t objectDescriptionId = 0;
+    uint16_t objectSpriteId = 0;
+    uint16_t objectSpriteFrameIndex = 0;
+    uint16_t objectFlags = 0;
+    GameplayProjectileVisualMode visualMode = GameplayProjectileVisualMode::SpriteBillboard;
+    uint16_t radius = 0;
+    uint16_t height = 0;
+    int spellId = 0;
+    std::string objectName;
+    std::string objectSpriteName;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float velocityX = 0.0f;
+    float velocityY = 0.0f;
+    float velocityZ = 0.0f;
+    uint32_t timeSinceCreatedTicks = 0;
+    int16_t sectorId = -1;
+    bool isSettled = false;
+};
+
+struct GameplayProjectileImpactPresentationState
+{
+    uint32_t effectId = 0;
+    uint16_t objectDescriptionId = 0;
+    uint16_t objectSpriteId = 0;
+    uint16_t objectSpriteFrameIndex = 0;
+    uint16_t sourceObjectFlags = 0;
+    int sourceSpellId = 0;
+    std::string objectName;
+    std::string objectSpriteName;
+    std::string sourceObjectName;
+    std::string sourceObjectSpriteName;
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    uint32_t timeSinceCreatedTicks = 0;
+    uint32_t lifetimeTicks = 0;
+    int16_t sectorId = -1;
+    bool freezeAnimation = false;
+};
+
+struct GameplayHeldItemDropRequest
+{
+    InventoryItem item = {};
+    float sourceX = 0.0f;
+    float sourceY = 0.0f;
+    float sourceZ = 0.0f;
+    float yawRadians = 0.0f;
+};
+
+struct GameplayWorldPoint
+{
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+};
+
+struct GameplayPartyAttackActorFacts
+{
+    size_t actorIndex = 0;
+    int16_t monsterId = 0;
+    std::string displayName;
+    GameplayWorldPoint position = {};
+    uint16_t radius = 0;
+    uint16_t height = 0;
+    int currentHp = 0;
+    int maxHp = 0;
+    int effectiveArmorClass = 0;
+    int hourOfPowerPower = 0;
+    bool isDead = false;
+    bool isInvisible = false;
+    bool hostileToParty = false;
+    bool visibleForFallback = false;
+    bool lineOfSightToParty = true;
+};
+
+struct GameplayCombatActorInfo
+{
+    uint32_t actorId = 0;
+    int16_t monsterId = 0;
+    int monsterLevel = 0;
+    int maxHp = 0;
+    uint32_t attackPreferences = 0;
+    int attackBonus = 0;
+    bool bolsterAffectsPlayerArmorClass = false;
+    MonsterSpecialAttackKind specialAttackKind = MonsterSpecialAttackKind::None;
+    int specialAttackLevel = 0;
+    std::string displayName;
+};
+
+struct GameplayPartyAttackSpellRequest
+{
+    size_t sourcePartyMemberIndex = 0;
+    uint32_t spellId = 0;
+    uint32_t skillLevel = 0;
+    uint32_t skillMastery = 0;
+    int damage = 0;
+    int attackBonus = 0;
+    bool useActorHitChance = false;
+    GameplayWorldPoint source = {};
+    GameplayWorldPoint target = {};
+};
+
+struct GameplayPartyAttackProjectileRequest
+{
+    size_t sourcePartyMemberIndex = 0;
+    uint32_t objectId = 0;
+    uint32_t impactObjectId = 0;
+    int damage = 0;
+    int attackBonus = 0;
+    bool useActorHitChance = false;
+    CombatDamageType damageType = CombatDamageType::Physical;
+    GameplayWorldPoint source = {};
+    GameplayWorldPoint target = {};
+    bool turnBasedPendingAction = false;
+};
+
+struct GameplayPartyAttackFallbackQuery
+{
+    std::array<float, 16> viewMatrix = {};
+    std::array<float, 16> projectionMatrix = {};
+};
+
+struct GameplayPartyAttackFrameInput
+{
+    bool enabled = false;
+    GameplayWorldPoint partyPosition = {};
+    GameplayWorldPoint rangedSource = {};
+    GameplayWorldPoint rangedRight = {};
+    GameplayWorldPoint defaultRangedTarget = {};
+    GameplayWorldPoint rayRangedTarget = {};
+    bool hasRayRangedTarget = false;
+    GameplayPartyAttackFallbackQuery fallbackQuery = {};
+};
+
+enum class GameplayInteractionMethod
+{
+    Keyboard,
+    Mouse,
+};
+
+class IGameplayWorldRuntime
+{
+public:
+    virtual ~IGameplayWorldRuntime() = default;
+
+    virtual const std::string &mapName() const = 0;
+    virtual const MonsterTable *monsterTable() const
+    {
+        return nullptr;
+    }
+    virtual const MergedBolsterMonsterTable *mergedBolsterMonsterTable() const
+    {
+        return nullptr;
+    }
+    virtual GameplayWorldPoint chooseBountyHuntSpawnPoint(uint32_t seed) const
+    {
+        (void)seed;
+        return GameplayWorldPoint{partyX() + 1024.0f, partyY(), partyFootZ()};
+    }
+    virtual bool isIndoorMap() const = 0;
+    virtual bool isUnderwaterMap() const
+    {
+        return false;
+    }
+    virtual bool allowsLloydsBeacon() const
+    {
+        return true;
+    }
+    virtual bool allowsRest() const
+    {
+        return true;
+    }
+    virtual float gameMinutes() const = 0;
+    virtual int currentHour() const = 0;
+    virtual const std::vector<uint8_t> *journalMapFullyRevealedCells() const = 0;
+    virtual const std::vector<uint8_t> *journalMapPartiallyRevealedCells() const = 0;
+    virtual int restFoodRequired() const = 0;
+    virtual void advanceGameMinutes(float minutes) = 0;
+    virtual void applyMapReentryReset()
+    {
+    }
+    virtual int currentLocationReputation() const = 0;
+    virtual void setCurrentLocationReputation(int reputation) = 0;
+    virtual void applyEventRuntimeState(bool syncPersistentHostilityMasks = false)
+    {
+        static_cast<void>(syncPersistentHostilityMasks);
+    }
+    virtual Party *party() = 0;
+    virtual const Party *party() const = 0;
+    virtual float partyX() const = 0;
+    virtual float partyY() const = 0;
+    virtual float partyFootZ() const = 0;
+    virtual float partyEngagementRange() const
+    {
+        return 10240.0f;
+    }
+    virtual float gameplayCameraYawRadians() const
+    {
+        return 0.0f;
+    }
+    virtual float gameplayCameraPitchRadians() const
+    {
+        return 0.0f;
+    }
+    virtual bool partyIsAirborneForRest() const
+    {
+        return false;
+    }
+    virtual bool partyIsFlyingForEventChecks() const
+    {
+        return false;
+    }
+    virtual bool partyIsActivelyFlyingForHud() const
+    {
+        return false;
+    }
+    virtual bool partyNeedsTurnBasedPhysicsUpdate() const
+    {
+        return false;
+    }
+    virtual void syncSpellMovementStatesFromPartyBuffs() = 0;
+    virtual void requestPartyJump(float verticalVelocity = 0.0f, float lift = 1.0f) = 0;
+    virtual void setAlwaysRunEnabled(bool enabled) = 0;
+    virtual void updateWorldMovement(
+        const GameplayInputFrame &input,
+        float deltaSeconds,
+        bool allowWorldInput) = 0;
+    virtual const GameplayWorldMovementFrameDiagnostics *lastWorldMovementFrameDiagnostics() const
+    {
+        return nullptr;
+    }
+    virtual void setScenarioPartyActorCollisionEnabled(bool enabled)
+    {
+        (void)enabled;
+    }
+    virtual void updateActorAi(float deltaSeconds) = 0;
+    virtual void updateTurnBasedPausedActorAnimations(float deltaSeconds)
+    {
+        (void)deltaSeconds;
+    }
+    virtual size_t turnBasedPendingWorldActionCount() const
+    {
+        return 0;
+    }
+    virtual bool turnBasedActorActionInProgress() const
+    {
+        return false;
+    }
+    virtual void stopTurnBasedActorMovement()
+    {
+    }
+    virtual void updateWorld(float deltaSeconds) = 0;
+    virtual void renderWorld(
+        int width,
+        int height,
+        const GameplayInputFrame &input,
+        float deltaSeconds) = 0;
+    virtual GameplayWorldUiRenderState gameplayUiRenderState(int width, int height) const = 0;
+    virtual bool requestTravelAutosave() = 0;
+    virtual void cancelPendingMapTransition() = 0;
+    virtual bool executeNpcTopicEvent(
+        uint16_t eventId,
+        size_t &previousMessageCount,
+        std::optional<uint8_t> continueStep = std::nullopt) = 0;
+    virtual bool executeMapEvent(
+        uint16_t eventId,
+        size_t &previousMessageCount,
+        std::optional<uint8_t> continueStep = std::nullopt) = 0;
+    virtual bool executeEventHooks(EventRuntimeHookKind kind)
+    {
+        (void)kind;
+        return false;
+    }
+    virtual const std::optional<ScriptedEventProgram> *globalEventProgram() const = 0;
+    virtual const MapDeltaData *mapDeltaData() const
+    {
+        return nullptr;
+    }
+    virtual MapDeltaData *mapDeltaData()
+    {
+        return nullptr;
+    }
+    virtual EventRuntimeState *eventRuntimeState() = 0;
+    virtual const EventRuntimeState *eventRuntimeState() const = 0;
+    virtual bool castEventSpell(
+        uint32_t spellId,
+        uint32_t skillLevel,
+        uint32_t skillMastery,
+        int32_t fromX,
+        int32_t fromY,
+        int32_t fromZ,
+        int32_t toX,
+        int32_t toY,
+        int32_t toZ) = 0;
+    virtual size_t mapActorCount() const = 0;
+    virtual bool actorRuntimeState(size_t actorIndex, GameplayRuntimeActorState &state) const = 0;
+    virtual bool tryStealFromActor(size_t actorIndex, uint32_t successRoll, uint32_t caughtRoll)
+    {
+        (void)actorIndex;
+        (void)successRoll;
+        (void)caughtRoll;
+        return false;
+    }
+    virtual bool actorInspectState(
+        size_t actorIndex,
+        uint32_t animationTicks,
+        GameplayActorInspectState &state) const = 0;
+    virtual std::optional<GameplayCombatActorInfo> combatActorInfoById(uint32_t actorId) const = 0;
+    virtual bool applyReflectedDamageToActor(
+        uint32_t actorId,
+        int damage,
+        CombatDamageType damageType,
+        uint32_t sourcePartyMemberIndex)
+    {
+        (void)actorId;
+        (void)damage;
+        (void)damageType;
+        (void)sourcePartyMemberIndex;
+        return false;
+    }
+    virtual bool castPartySpellProjectile(const GameplayPartySpellProjectileRequest &request) = 0;
+    virtual bool applyPartySpellToActor(
+        size_t actorIndex,
+        uint32_t spellId,
+        uint32_t skillLevel,
+        SkillMastery skillMastery,
+        int damage,
+        float partyX,
+        float partyY,
+        float partyZ,
+        uint32_t sourcePartyMemberIndex) = 0;
+    virtual std::vector<size_t> collectMapActorIndicesWithinRadius(
+        float centerX,
+        float centerY,
+        float centerZ,
+        float radius,
+        bool requireLineOfSight,
+        float sourceX,
+        float sourceY,
+        float sourceZ) const = 0;
+    virtual std::vector<size_t> collectVisibleMapActorIndicesWithinRadius(
+        float centerX,
+        float centerY,
+        float centerZ,
+        float radius,
+        float sourceX,
+        float sourceY,
+        float sourceZ,
+        float viewX,
+        float viewY,
+        float viewZ,
+        float viewYawRadians,
+        float viewPitchRadians,
+        float viewAspectRatio) const
+    {
+        (void)viewX;
+        (void)viewY;
+        (void)viewZ;
+        (void)viewYawRadians;
+        (void)viewPitchRadians;
+        (void)viewAspectRatio;
+        return collectMapActorIndicesWithinRadius(centerX, centerY, centerZ, radius, true, sourceX, sourceY, sourceZ);
+    }
+    virtual bool spawnPartyFireSpikeTrap(
+        uint32_t casterMemberIndex,
+        uint32_t spellId,
+        uint32_t skillLevel,
+        uint32_t skillMastery,
+        float x,
+        float y,
+        float z) = 0;
+    virtual bool summonFriendlyMonsterById(
+        int16_t monsterId,
+        uint32_t count,
+        float durationSeconds,
+        float x,
+        float y,
+        float z) = 0;
+    virtual bool summonHostileMonsterById(
+        int16_t monsterId,
+        uint32_t count,
+        float x,
+        float y,
+        float z,
+        uint32_t group)
+    {
+        (void)monsterId;
+        (void)count;
+        (void)x;
+        (void)y;
+        (void)z;
+        (void)group;
+        return false;
+    }
+    virtual bool tryStartArmageddon(
+        size_t casterMemberIndex,
+        uint32_t skillLevel,
+        SkillMastery skillMastery,
+        std::string &failureText) = 0;
+    virtual bool canActivateWorldHit(
+        const GameplayWorldHit &hit,
+        GameplayInteractionMethod interactionMethod) const = 0;
+    virtual bool activateWorldHit(const GameplayWorldHit &hit) = 0;
+    virtual bool activateWorldHitFromSpell(const GameplayWorldHit &hit, uint32_t spellId)
+    {
+        (void)spellId;
+        return activateWorldHit(hit);
+    }
+    virtual bool canActivateTelekinesisTarget(const GameplayWorldHit &hit) const = 0;
+    virtual bool activateTelekinesisTarget(const GameplayWorldHit &hit) = 0;
+    virtual std::optional<GameplayPartyAttackActorFacts> partyAttackActorFacts(
+        size_t actorIndex,
+        bool visibleForFallback) const = 0;
+    virtual std::vector<GameplayPartyAttackActorFacts> collectPartyAttackFallbackActors(
+        const GameplayPartyAttackFallbackQuery &query) const = 0;
+    virtual bool applyPartyAttackMeleeDamage(
+        size_t actorIndex,
+        int damage,
+        const GameplayWorldPoint &source) = 0;
+    virtual bool applyPartyAttackMeleeBModelDamage(size_t bModelIndex, int damage)
+    {
+        (void)bModelIndex;
+        (void)damage;
+        return false;
+    }
+    virtual bool isPartyAttackMeleeBModelTarget(size_t bModelIndex) const
+    {
+        (void)bModelIndex;
+        return false;
+    }
+    virtual void applyPartyAttackMeleeEffects(
+        size_t actorIndex,
+        const CharacterAttackResult &attack,
+        const GameplayWorldPoint &source)
+    {
+        (void)actorIndex;
+        (void)attack;
+        (void)source;
+    }
+    virtual bool spawnPartyAttackProjectile(const GameplayPartyAttackProjectileRequest &request) = 0;
+    virtual bool castPartyAttackSpell(const GameplayPartyAttackSpellRequest &request) = 0;
+    virtual std::vector<GameplayCombatFeedbackEvent> drainCombatFeedbackEvents()
+    {
+        return {};
+    }
+    virtual void recordPartyAttackWorldResult(
+        std::optional<size_t> actorIndex,
+        bool attacked,
+        bool actionPerformed) = 0;
+    virtual bool worldInteractionReady() const = 0;
+    virtual bool worldInspectModeActive() const = 0;
+    virtual GameplayWorldPickRequest buildWorldPickRequest(const GameplayWorldPickRequestInput &input) const = 0;
+    virtual std::optional<GameplayHeldItemDropRequest> buildHeldItemDropRequest() const = 0;
+    virtual GameplayPartyAttackFrameInput buildPartyAttackFrameInput(
+        const GameplayWorldPickRequest &pickRequest) const = 0;
+    virtual std::optional<size_t> spellActionHoveredActorIndex() const = 0;
+    virtual std::optional<size_t> spellActionClosestVisibleHostileActorIndex() const = 0;
+    virtual std::optional<bx::Vec3> spellActionActorTargetPoint(size_t actorIndex) const = 0;
+    virtual std::optional<bx::Vec3> spellActionGroundTargetPoint(float screenX, float screenY) const = 0;
+    virtual GameplayPendingSpellWorldTargetFacts pickPendingSpellWorldTarget(
+        const GameplayWorldPickRequest &request) = 0;
+    virtual GameplayWorldHit pickKeyboardInteractionTarget(const GameplayWorldPickRequest &request) = 0;
+    virtual GameplayWorldHit pickHeldItemWorldTarget(const GameplayWorldPickRequest &request) = 0;
+    virtual GameplayWorldHit pickMouseInteractionTarget(const GameplayWorldPickRequest &request) = 0;
+    virtual GameplayWorldHit pickPartyAttackTarget(const GameplayWorldPickRequest &request)
+    {
+        return pickMouseInteractionTarget(request);
+    }
+    virtual bool hasCustomWorldItemActivation(size_t worldItemIndex) const
+    {
+        (void)worldItemIndex;
+        return false;
+    }
+    virtual bool activateCustomWorldItem(size_t worldItemIndex)
+    {
+        (void)worldItemIndex;
+        return false;
+    }
+    virtual bool worldItemInspectState(size_t worldItemIndex, GameplayWorldItemInspectState &state) const
+    {
+        (void)worldItemIndex;
+        (void)state;
+        return false;
+    }
+    virtual bool updateWorldItemInspectState(size_t worldItemIndex, const InventoryItem &item)
+    {
+        (void)worldItemIndex;
+        (void)item;
+        return false;
+    }
+    virtual bool takeWorldItemInspectState(size_t worldItemIndex, GameplayWorldItemInspectState &state)
+    {
+        (void)worldItemIndex;
+        (void)state;
+        return false;
+    }
+    virtual GameplayWorldHoverCacheState worldHoverCacheState() const = 0;
+    virtual GameplayHoverStatusPayload refreshWorldHover(const GameplayWorldHoverRequest &request) = 0;
+    virtual GameplayHoverStatusPayload readCachedWorldHover() = 0;
+    virtual void clearWorldHover() = 0;
+    virtual bool canUseHeldItemOnWorld(const GameplayWorldHit &hit) const = 0;
+    virtual bool useHeldItemOnWorld(const GameplayWorldHit &hit) = 0;
+    virtual void applyPendingSpellCastWorldEffects(const PartySpellCastResult &castResult) = 0;
+    virtual bool dropHeldItemToWorld(const GameplayHeldItemDropRequest &request) = 0;
+    virtual bool tryGetGameplayMinimapState(GameplayMinimapState &state) const = 0;
+    virtual void collectGameplayMinimapLines(std::vector<GameplayMinimapLineState> &lines) = 0;
+    virtual void collectGameplayMinimapMarkers(std::vector<GameplayMinimapMarkerState> &markers) const = 0;
+    virtual GameplayChestViewState *activeChestView() = 0;
+    virtual const GameplayChestViewState *activeChestView() const = 0;
+    virtual void commitActiveChestView() = 0;
+    virtual bool takeActiveChestItem(size_t itemIndex, GameplayChestItemState &item) = 0;
+    virtual bool takeActiveChestItemAt(uint8_t gridX, uint8_t gridY, GameplayChestItemState &item) = 0;
+    virtual bool tryPlaceActiveChestItemAt(const GameplayChestItemState &item, uint8_t gridX, uint8_t gridY) = 0;
+    virtual void closeActiveChestView() = 0;
+    virtual GameplayCorpseViewState *activeCorpseView() = 0;
+    virtual const GameplayCorpseViewState *activeCorpseView() const = 0;
+    virtual void commitActiveCorpseView() = 0;
+    virtual bool takeActiveCorpseItem(size_t itemIndex, GameplayChestItemState &item) = 0;
+    virtual void closeActiveCorpseView() = 0;
+};
+}

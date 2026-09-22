@@ -1,0 +1,176 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace OpenYAMM::Game
+{
+struct MapDeltaData;
+
+class ISceneEventContext
+{
+public:
+    virtual ~ISceneEventContext() = default;
+
+    virtual float currentGameMinutes() const = 0;
+    virtual const MapDeltaData *mapDeltaData() const = 0;
+    virtual MapDeltaData *mapDeltaData() = 0;
+    virtual bool setFacetBit(uint32_t cogNumber, uint32_t bit, bool isOn) = 0;
+    virtual std::vector<uint32_t> resolveIndoorLightReferenceIds(int32_t rawReferenceId) const
+    {
+        (void)rawReferenceId;
+        return {};
+    }
+
+    virtual bool registerOutdoorModelMechanism(
+        uint32_t mechanismId,
+        const std::string &modelName,
+        int32_t dx,
+        int32_t dy,
+        int32_t dz,
+        uint32_t moveTimeMs,
+        bool closed,
+        bool moveParty)
+    {
+        (void)mechanismId;
+        (void)modelName;
+        (void)dx;
+        (void)dy;
+        (void)dz;
+        (void)moveTimeMs;
+        (void)closed;
+        (void)moveParty;
+        return false;
+    }
+
+    virtual bool castEventSpell(
+        uint32_t spellId,
+        uint32_t skillLevel,
+        uint32_t skillMastery,
+        int32_t fromX,
+        int32_t fromY,
+        int32_t fromZ,
+        int32_t toX,
+        int32_t toY,
+        int32_t toZ
+    ) = 0;
+
+    virtual bool summonMonsters(
+        uint32_t typeIndexInMapStats,
+        uint32_t level,
+        uint32_t count,
+        int32_t x,
+        int32_t y,
+        int32_t z,
+        uint32_t group,
+        uint32_t uniqueNameId
+    ) = 0;
+
+    virtual bool summonEventItem(
+        uint32_t itemId,
+        int32_t x,
+        int32_t y,
+        int32_t z,
+        int32_t speed,
+        uint32_t count,
+        bool randomRotate
+    ) = 0;
+
+    virtual bool summonEventObject(
+        uint32_t objectId,
+        int32_t x,
+        int32_t y,
+        int32_t z,
+        int32_t speed,
+        uint32_t count,
+        bool randomRotate
+    ) = 0;
+
+    virtual bool checkMonstersKilled(
+        uint32_t checkType,
+        uint32_t id,
+        uint32_t count,
+        bool invisibleAsDead
+    ) const = 0;
+
+    virtual bool specialJump(uint32_t encodedHorizontalVelocity, uint32_t verticalVelocity)
+    {
+        (void)encodedHorizontalVelocity;
+        (void)verticalVelocity;
+        return false;
+    }
+
+    virtual bool setMapActorPosition(size_t actorIndex, float x, float y, float z)
+    {
+        (void)actorIndex;
+        (void)x;
+        (void)y;
+        (void)z;
+        return false;
+    }
+
+    virtual bool isMapActorHostile(size_t actorIndex) const
+    {
+        (void)actorIndex;
+        return false;
+    }
+
+    virtual bool isMapActorWithinPartyDistance(size_t actorIndex, float distance) const
+    {
+        (void)actorIndex;
+        (void)distance;
+        return false;
+    }
+
+    virtual bool searchLootProp(const std::string &sourceId)
+    {
+        (void)sourceId;
+        return false;
+    }
+
+    virtual bool useMm9Barrel(const std::string &sourceId)
+    {
+        (void)sourceId;
+        return false;
+    }
+
+    virtual bool useMm9BarrelEvent(uint16_t eventId)
+    {
+        (void)eventId;
+        return false;
+    }
+
+    virtual bool spawnLootContainer(const std::string &sourceId)
+    {
+        (void)sourceId;
+        return false;
+    }
+
+    virtual bool consumeWorldItem(const std::string &sourceId)
+    {
+        (void)sourceId;
+        return false;
+    }
+
+    virtual bool setPersistentItemMechanismState(
+        const std::string &sourceId,
+        bool visible,
+        bool solid)
+    {
+        (void)sourceId;
+        (void)visible;
+        (void)solid;
+        return false;
+    }
+
+    virtual bool setPersistentItemMechanismVariant(
+        const std::string &sourceId,
+        uint32_t variantIndex)
+    {
+        (void)sourceId;
+        (void)variantIndex;
+        return false;
+    }
+};
+}

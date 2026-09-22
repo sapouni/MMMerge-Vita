@@ -1,0 +1,12 @@
+{
+  "package_revision": "01.06-R2",
+  "version": "01.06",
+  "title_id": "MMVITA001",
+  "old_title_id": "OYAM00001",
+  "package_bytes": 12316740,
+  "package_sha256": "08d657a74906059678dfda84d2c808ec2f1b9134a84234efd52dc02f389b3ca7",
+  "vpk_sha256": "7511d37d3d5bd12afcbb536e2fa9d15228bae7038f4445d9d4899a21bca8ed89",
+  "hardware_tested": false,
+  "artwork_verified_on_device_as": "OYAMART01",
+  "package": "MMerge-Vita-01.06-R2-artwork-fix.zip"
+}

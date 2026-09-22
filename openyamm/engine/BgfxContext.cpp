@@ -1,0 +1,379 @@
+#include "engine/BgfxContext.h"
+#include "engine/VitaDiagnostics.h"
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_properties.h>
+#include <SDL3/SDL_video.h>
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <mutex>
+#include <optional>
+#include <utility>
+
+namespace OpenYAMM::Engine
+{
+namespace
+{
+std::mutex g_screenshotMutex;
+std::optional<BgfxContext::ScreenshotCapture> g_screenshotCapture;
+bool g_bgfxInitialized = false;
+
+bgfx::RendererType::Enum selectRendererType(bool useNoopRenderer)
+{
+    if (useNoopRenderer)
+    {
+        return bgfx::RendererType::Noop;
+    }
+
+#if defined(__ANDROID__)
+    return bgfx::RendererType::OpenGLES;
+#elif defined(_WIN32)
+    return bgfx::RendererType::Direct3D11;
+#else
+    return bgfx::RendererType::OpenGL;
+#endif
+}
+}
+
+class BgfxContext::Callback final : public bgfx::CallbackI
+{
+public:
+    void fatal(const char *pFilePath, uint16_t line, bgfx::Fatal::Enum code, const char *pMessage) override
+    {
+        std::cerr
+            << "bgfx fatal"
+            << " [" << (pFilePath != nullptr ? pFilePath : "?") << ":" << line << "] "
+            << (pMessage != nullptr ? pMessage : "")
+            << '\n';
+
+        if (code != bgfx::Fatal::DebugCheck)
+        {
+            std::abort();
+        }
+    }
+
+    void traceVargs(const char *pFilePath, uint16_t line, const char *pFormat, va_list argList) override
+    {
+        std::fprintf(stderr, "bgfx trace [%s:%u] ", pFilePath != nullptr ? pFilePath : "?", line);
+        std::vfprintf(stderr, pFormat, argList);
+    }
+
+    void profilerBegin(const char *, uint32_t, const char *, uint16_t) override
+    {
+    }
+
+    void profilerBeginLiteral(const char *, uint32_t, const char *, uint16_t) override
+    {
+    }
+
+    void profilerEnd() override
+    {
+    }
+
+    uint32_t cacheReadSize(uint64_t) override
+    {
+        return 0;
+    }
+
+    bool cacheRead(uint64_t, void *, uint32_t) override
+    {
+        return false;
+    }
+
+    void cacheWrite(uint64_t, const void *, uint32_t) override
+    {
+    }
+
+    void screenShot(
+        const char *pFilePath,
+        uint32_t width,
+        uint32_t height,
+        uint32_t pitch,
+        bgfx::TextureFormat::Enum format,
+        const void *pData,
+        uint32_t size,
+        bool yFlip) override
+    {
+        if (pFilePath == nullptr || pData == nullptr || width == 0 || height == 0 || pitch < width * 4)
+        {
+            return;
+        }
+
+        const size_t expectedSize = static_cast<size_t>(pitch) * static_cast<size_t>(height);
+
+        if (size < expectedSize)
+        {
+            return;
+        }
+
+        ScreenshotCapture capture = {};
+        capture.token = pFilePath;
+        capture.width = width;
+        capture.height = height;
+        capture.bgraPixels.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
+
+        const uint8_t *pSourceBytes = static_cast<const uint8_t *>(pData);
+
+        for (uint32_t y = 0; y < height; ++y)
+        {
+            const uint32_t sourceY = yFlip ? (height - 1 - y) : y;
+            const uint8_t *pSourceRow = pSourceBytes + static_cast<size_t>(sourceY) * pitch;
+            uint8_t *pDestinationRow = capture.bgraPixels.data() + static_cast<size_t>(y) * width * 4;
+
+            if (format == bgfx::TextureFormat::RGBA8)
+            {
+                for (uint32_t x = 0; x < width; ++x)
+                {
+                    const size_t sourceIndex = static_cast<size_t>(x) * 4;
+                    const size_t destinationIndex = static_cast<size_t>(x) * 4;
+                    pDestinationRow[destinationIndex + 0] = pSourceRow[sourceIndex + 2];
+                    pDestinationRow[destinationIndex + 1] = pSourceRow[sourceIndex + 1];
+                    pDestinationRow[destinationIndex + 2] = pSourceRow[sourceIndex + 0];
+                    pDestinationRow[destinationIndex + 3] = pSourceRow[sourceIndex + 3];
+                }
+            }
+            else
+            {
+                std::memcpy(pDestinationRow, pSourceRow, static_cast<size_t>(width) * 4);
+            }
+        }
+
+        std::scoped_lock lock(g_screenshotMutex);
+        g_screenshotCapture = std::move(capture);
+    }
+
+    void captureBegin(uint32_t, uint32_t, uint32_t, bgfx::TextureFormat::Enum, bool) override
+    {
+    }
+
+    void captureEnd() override
+    {
+    }
+
+    void captureFrame(const void *, uint32_t) override
+    {
+    }
+};
+
+BgfxContext::BgfxContext()
+    : m_isInitialized(false)
+    , m_verticalSync(false)
+    , m_rendererType(bgfx::RendererType::Noop)
+    , m_pCallback(std::make_unique<Callback>())
+{
+}
+
+BgfxContext::~BgfxContext()
+{
+    shutdown();
+}
+
+uint32_t bgfxResetFlags(bool verticalSync)
+{
+    uint32_t flags = BGFX_RESET_MAXANISOTROPY;
+
+    if (verticalSync)
+    {
+        flags |= BGFX_RESET_VSYNC;
+    }
+
+    return flags;
+}
+
+bool BgfxContext::initialize(SDL_Window *pWindow, int windowWidth, int windowHeight, bool verticalSync)
+{
+    shutdown();
+
+    bgfx::Init init = {};
+#if defined(OPENYAMM_VITA_LOADER)
+    // All submissions, including ImGui begin(false), use the main-thread encoder.
+    // The GL render thread consumes frames independently; it is not an encoder.
+    init.limits.maxEncoders = 1;
+    // Two frame copies: 8 MiB CPU instead of 16 MiB. GPU transient storage also halves.
+    init.limits.maxTransientVbSize = 3 * 1024 * 1024;
+    init.limits.maxTransientIbSize = 1 * 1024 * 1024;
+#endif
+    const char *pVideoDriver = SDL_GetCurrentVideoDriver();
+    const bool useNoopRenderer = (pVideoDriver != nullptr) && (SDL_strcmp(pVideoDriver, "dummy") == 0);
+
+    init.type = selectRendererType(useNoopRenderer);
+    init.vendorId = BGFX_PCI_ID_NONE;
+    init.platformData = resolvePlatformData(pWindow);
+    init.resolution.width = static_cast<uint32_t>(windowWidth);
+    init.resolution.height = static_cast<uint32_t>(windowHeight);
+    init.resolution.reset = bgfxResetFlags(verticalSync);
+    init.callback = m_pCallback.get();
+
+    if (!bgfx::init(init))
+    {
+        std::cerr << "bgfx::init failed.\n";
+        return false;
+    }
+
+    g_bgfxInitialized = true;
+#if defined(OPENYAMM_VITA_LOADER)
+    reportVitaMemory("bgfx initialized");
+#endif
+    m_isInitialized = true;
+    m_verticalSync = verticalSync;
+    m_rendererType = bgfx::getRendererType();
+#if defined(OPENYAMM_VITA_PROFILE)
+    const bgfx::Caps *caps = bgfx::getCaps();
+    std::fprintf(stderr, "PROFILE RENDERER_MULTITHREADED value=%u\n",
+        unsigned((caps->supported & BGFX_CAPS_RENDERER_MULTITHREADED) != 0));
+    std::fprintf(stderr, "PROFILE BACKEND type=%u name=%s supported=0x%llx RGBA8=0x%x "
+        "maxTexture=%u maxDraw=%u init=success shaders=runtime/shaders/essl shaderc_profile=100_es\n",
+        unsigned(m_rendererType), bgfx::getRendererName(m_rendererType),
+        (unsigned long long)caps->supported, unsigned(caps->formats[bgfx::TextureFormat::RGBA8]),
+        caps->limits.maxTextureSize, caps->limits.maxDrawCalls);
+#endif
+
+    bgfx::setDebug(BGFX_DEBUG_NONE);
+    bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x000000ff, 1.0f, 0);
+
+    return true;
+}
+
+void BgfxContext::resize(SDL_Window *pWindow, int windowWidth, int windowHeight) const
+{
+    if (!m_isInitialized)
+    {
+        return;
+    }
+
+#if defined(__ANDROID__)
+    bgfx::setPlatformData(resolvePlatformData(pWindow));
+#else
+    static_cast<void>(pWindow);
+#endif
+
+    bgfx::reset(
+        static_cast<uint32_t>(windowWidth),
+        static_cast<uint32_t>(windowHeight),
+        bgfxResetFlags(m_verticalSync));
+}
+
+void BgfxContext::shutdown()
+{
+    if (!m_isInitialized)
+    {
+        return;
+    }
+
+    bgfx::shutdown();
+    m_isInitialized = false;
+    m_verticalSync = false;
+    m_rendererType = bgfx::RendererType::Noop;
+    g_bgfxInitialized = false;
+}
+
+bool BgfxContext::isInitialized() const
+{
+    return m_isInitialized;
+}
+
+bool BgfxContext::isBgfxInitialized()
+{
+    return g_bgfxInitialized;
+}
+
+bgfx::RendererType::Enum BgfxContext::getRendererType() const
+{
+    return m_rendererType;
+}
+
+std::optional<BgfxContext::ScreenshotCapture> BgfxContext::consumeScreenshot(const std::string &token)
+{
+    std::scoped_lock lock(g_screenshotMutex);
+
+    if (!g_screenshotCapture || g_screenshotCapture->token != token)
+    {
+        return std::nullopt;
+    }
+
+    std::optional<ScreenshotCapture> capture = std::move(g_screenshotCapture);
+    g_screenshotCapture.reset();
+    return capture;
+}
+
+bgfx::PlatformData BgfxContext::resolvePlatformData(SDL_Window *pWindow)
+{
+    bgfx::PlatformData platformData = {};
+
+    if (pWindow == nullptr)
+    {
+        return platformData;
+    }
+
+#if defined(OPENYAMM_VITA_LOADER)
+    // vitaGL owns the sole display; its EGL backend treats the SDL window as an opaque handle.
+    platformData.nwh = pWindow;
+    platformData.type = bgfx::NativeWindowHandleType::Default;
+    return platformData;
+#endif
+
+    const SDL_PropertiesID windowProperties = SDL_GetWindowProperties(pWindow);
+
+    if (windowProperties == 0)
+    {
+        return platformData;
+    }
+
+#if defined(SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER)
+    void *pAndroidWindow = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr);
+
+    if (pAndroidWindow != nullptr)
+    {
+        platformData.nwh = pAndroidWindow;
+        platformData.type = bgfx::NativeWindowHandleType::Default;
+        return platformData;
+    }
+#endif
+
+    void *pWaylandDisplay = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
+    void *pWaylandSurface = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
+
+    if (pWaylandDisplay != nullptr && pWaylandSurface != nullptr)
+    {
+        platformData.ndt = pWaylandDisplay;
+        platformData.nwh = pWaylandSurface;
+        platformData.type = bgfx::NativeWindowHandleType::Wayland;
+        return platformData;
+    }
+
+    void *pX11Display = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
+    const Sint64 x11WindowNumber = SDL_GetNumberProperty(windowProperties, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+
+    if (pX11Display != nullptr && x11WindowNumber != 0)
+    {
+        platformData.ndt = pX11Display;
+        platformData.nwh = reinterpret_cast<void *>(static_cast<uintptr_t>(x11WindowNumber));
+        platformData.type = bgfx::NativeWindowHandleType::Default;
+        return platformData;
+    }
+
+    void *pWin32Handle = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+
+    if (pWin32Handle != nullptr)
+    {
+        platformData.nwh = pWin32Handle;
+        platformData.type = bgfx::NativeWindowHandleType::Default;
+        return platformData;
+    }
+
+    void *pCocoaWindow = SDL_GetPointerProperty(windowProperties, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr);
+
+    if (pCocoaWindow != nullptr)
+    {
+        platformData.nwh = pCocoaWindow;
+        platformData.type = bgfx::NativeWindowHandleType::Default;
+        return platformData;
+    }
+
+    return platformData;
+}
+}

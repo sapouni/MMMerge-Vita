@@ -1,0 +1,298 @@
+add_executable(openyamm_unit_tests
+    AssetFileSystemTests.cpp
+    ActorPathRuntimeTests.cpp
+    AudioRegressionTests.cpp
+    ArcomageRegressionTests.cpp
+    ChestRegressionTests.cpp
+    ContentManifestTests.cpp
+    HouseDialogueRegressionTests.cpp
+    ScriptedMapRegressionTests.cpp
+    UnitTestMain.cpp
+    CharacterSheetRegressionTests.cpp
+    CombatActorHealthBarPolicyTests.cpp
+    GameplayActorAiSystemTests.cpp
+    GameplayBolsterRuntimeTests.cpp
+    GameplaySaveLoadUiSupportTests.cpp
+    GameplayRuleRegressionTests.cpp
+    GameInputSystemTests.cpp
+    AwardRuntimeTests.cpp
+    GameplayProjectileServiceTests.cpp
+    ImageAssetLoaderTests.cpp
+    IndoorCollisionPrimitivesTests.cpp
+    IndoorActorActivationTests.cpp
+    IndoorLightingRuntimeTests.cpp
+    IndoorPathfindingBuilderTests.cpp
+    IndoorPortalGraphTests.cpp
+    IndoorPortalVisibilityTests.cpp
+    IndoorRenderRevisionTests.cpp
+    InventoryEquipRegressionTests.cpp
+    LegacyLuaExportTests.cpp
+    MapStatsRegressionTests.cpp
+    MapDeltaDataTests.cpp
+    MM7MechanicsRuntimeTests.cpp
+    MercenaryRecruitmentRuntimeTests.cpp
+    Mm9MapTransitionTests.cpp
+    Mm9BarrelRuntimeTests.cpp
+    Mm9TeacherScheduleTests.cpp
+    Mm9RudeDialogueTests.cpp
+    Mm9SkillTrainerTests.cpp
+    Mm9TransportRouteTests.cpp
+    Mm9QuestMarkerTests.cpp
+    MapItemSourceTests.cpp
+    MapPresentationTests.cpp
+    MonsterTableRegressionTests.cpp
+    MobileJumpDoubleTapGestureTests.cpp
+    MobileJoystickDirectionTests.cpp
+    MergedBaseTablesTests.cpp
+    OutdoorLightingRuntimeTests.cpp
+    OutdoorLightingDataTests.cpp
+    OutdoorPathfindingBuilderTests.cpp
+    OutdoorNavigationDataTests.cpp
+    OutdoorRenderDataTests.cpp
+    BillboardGeometryTests.cpp
+    PartyRegressionTests.cpp
+    PathMapTests.cpp
+    PathPlannerTests.cpp
+    RegressionMapLoader.cpp
+    ScreenManagerTests.cpp
+    ScriptedEventTimerTests.cpp
+    SpellRegressionTests.cpp
+    RegressionGameData.cpp
+    SpellbookUiLayoutTests.cpp
+    TableRegressionTests.cpp
+    TextTableTests.cpp
+    TextureFilteringTests.cpp
+    TurnBasedCombatRuntimeTests.cpp
+    UiLayoutManagerTests.cpp
+    GameplayScreenRuntimeTestStubs.cpp
+    ../game/app/GameSettings.cpp
+    ../game/app/GameInputSystem.cpp
+    ../game/app/KeyboardBindings.cpp
+    ../game/app/ScreenManager.cpp
+    ../engine/AudioSystem.cpp
+    ../engine/AssetFileSystem.cpp
+    ../engine/AssetScaleTier.cpp
+    ../engine/ImageAssetLoader.cpp
+    ../engine/TextTable.cpp
+    ../game/render/TextureFiltering.cpp
+    ../game/arcomage/ArcomageAi.cpp
+    ../game/arcomage/ArcomageLoader.cpp
+    ../game/arcomage/ArcomageRules.cpp
+    ../game/audio/GameAudioSystem.cpp
+    ../game/audio/SoundCatalog.cpp
+    ../game/content/ContentManifest.cpp
+    ../game/content/ContentTableComposer.cpp
+    ../game/data/ActorNameResolver.cpp
+    ../game/data/GameDataLoader.cpp
+    ../game/debug/GameplayDebugTrace.cpp
+    ../engine/scripting/LuaStateOwner.cpp
+    ../game/events/EventRuntime.cpp
+    ../game/events/EventDialogContent.cpp
+    ../game/events/ScriptedEventProgram.cpp
+    ../game/events/ScriptedEventTimer.cpp
+    ../game/gameplay/ChestRuntime.cpp
+    ../game/gameplay/GameplayBolsterRuntime.cpp
+    ../game/gameplay/GameplayActorAiSystem.cpp
+    ../game/gameplay/GameplayActorService.cpp
+    ../game/gameplay/GameplayWorldItemPolicy.cpp
+    ../game/gameplay/SearchableLootPropRuntime.cpp
+    ../game/gameplay/LootContainerRuntime.cpp
+    ../game/gameplay/GameplayDialogController.cpp
+    ../game/gameplay/GameplayCombatController.cpp
+    ../game/gameplay/GameplaySpeechRules.cpp
+    ../game/gameplay/GameplayWorldItemInteraction.cpp
+    ../game/gameplay/InteractiveDecorationRules.cpp
+    ../game/gameplay/BountyHuntRuntime.cpp
+    ../game/gameplay/AwardRuntime.cpp
+    ../game/gameplay/MonsterSpellSupport.cpp
+    ../game/gameplay/MercenaryRecruitmentRuntime.cpp
+    ../game/gameplay/GameMechanics.cpp
+    ../game/gameplay/GenericActorDialog.cpp
+    ../game/gameplay/HouseInteraction.cpp
+    ../game/gameplay/HouseServiceRuntime.cpp
+    ../game/gameplay/JournalQuestRuntime.cpp
+    ../game/gameplay/MasteryTeacherDialog.cpp
+    ../game/gameplay/NpcFollowerRuntime.cpp
+    ../game/gameplay/ReputationRuntime.cpp
+    ../game/gameplay/StealingRuntime.cpp
+    ../game/gameplay/GameplayProjectileService.cpp
+    ../game/gameplay/GameplaySaveLoadUiSupport.cpp
+    ../game/gameplay/GameplayScreenState.cpp
+    ../game/gameplay/TurnBasedCombatRuntime.cpp
+    ../game/gameplay/TravelRuntime.cpp
+    ../game/gameplay/CorpseLootRuntime.cpp
+    ../game/gameplay/SavePreviewImage.cpp
+    ../game/maps/MapDeltaData.cpp
+    ../game/maps/MapAssetLoader.cpp
+    ../game/maps/MapIdentity.cpp
+    ../game/maps/SaveGame.cpp
+    ../game/maps/MapRegistry.cpp
+    ../game/maps/IndoorSceneYml.cpp
+    ../game/maps/MapItemSourceYml.cpp
+    ../game/maps/MapPresentation.cpp
+    ../game/maps/OutdoorSceneYml.cpp
+    ../game/maps/TerrainTileData.cpp
+    ../game/indoor/IndoorCollisionPrimitives.cpp
+    ../game/indoor/IndoorGeometryUtils.cpp
+    ../game/indoor/IndoorLightingRuntime.cpp
+    ../game/indoor/IndoorMapData.cpp
+    ../game/indoor/IndoorMovementController.cpp
+    ../game/indoor/IndoorPartyRuntime.cpp
+    ../game/indoor/IndoorPathfindingBuilder.cpp
+    ../game/indoor/IndoorPortalGraph.cpp
+    ../game/indoor/IndoorPortalVisibility.cpp
+    ../game/fx/ParticleRecipes.cpp
+    ../game/fx/ParticleSystem.cpp
+    ../game/items/InventoryItemMixingRuntime.cpp
+    ../game/items/InventoryItemUseRuntime.cpp
+    ../game/items/ItemEnchantRuntime.cpp
+    ../game/items/ItemEnchantTables.cpp
+    ../game/items/ItemGenerator.cpp
+    ../game/items/PriceCalculator.cpp
+    ../game/items/ItemRuntime.cpp
+    ../game/party/Party.cpp
+    ../game/party/EventSpellBuffs.cpp
+    ../game/party/LloydsBeaconRuntime.cpp
+    ../game/party/PartySpellSystem.cpp
+    ../game/party/SkillData.cpp
+    ../game/party/SpellSchool.cpp
+    ../game/tables/ChestTable.cpp
+    ../game/tables/AwardTable.cpp
+    ../game/tables/CharacterDollTable.cpp
+    ../game/tables/CharacterInspectTable.cpp
+    ../game/tables/ClassMultiplierTable.cpp
+    ../game/tables/ClassSkillTable.cpp
+    ../game/tables/FaceAnimationTable.cpp
+    ../game/tables/HouseTable.cpp
+    ../game/tables/IconFrameTable.cpp
+    ../game/tables/ItemTable.cpp
+    ../game/tables/JournalAutonoteTable.cpp
+    ../game/tables/JournalHistoryTable.cpp
+    ../game/tables/JournalQuestTable.cpp
+    ../game/tables/MonsterTable.cpp
+    ../game/tables/MonsterProjectileTable.cpp
+    ../game/tables/MergedBaseTables.cpp
+    ../game/mm9/Mm9RudeDialogue.cpp
+    ../game/mm9/Mm9BarrelRuntime.cpp
+    ../game/mm9/Mm9PrimaryStats.cpp
+    ../game/mm9/Mm9PositionedTransitionRuntime.cpp
+    ../game/mm9/Mm9SkillTrainer.cpp
+    ../game/mm9/Mm9TransportRoute.cpp
+    ../game/mm9/Mm9QuestMarkers.cpp
+    ../game/mm9/Mm9MapTransition.cpp
+    ../game/mm9/Mm9TeacherSchedule.cpp
+    ../game/tables/MapStats.cpp
+    ../game/tables/NpcDialogTable.cpp
+    ../game/tables/ObjectTable.cpp
+    ../game/tables/PortraitEnums.cpp
+    ../game/tables/PortraitFrameTable.cpp
+    ../game/tables/PortraitFxEventTable.cpp
+    ../game/tables/PotionMixingTable.cpp
+    ../game/tables/PotionNoteTable.cpp
+    ../game/tables/RaceStartingStatsTable.cpp
+    ../game/tables/RosterTable.cpp
+    ../game/tables/ReadableScrollTable.cpp
+    ../game/tables/SpellTable.cpp
+    ../game/tables/SpellFxTable.cpp
+    ../game/tables/SpeechReactionTable.cpp
+    ../game/tables/TransitionTable.cpp
+    ../game/tables/SpriteTables.cpp
+    ../game/tables/SurfaceMaterialTable.cpp
+    ../game/tables/TextureFrameTable.cpp
+    ../game/ui/GameplayUiController.cpp
+    ../game/ui/SpellbookUiLayout.cpp
+    ../game/ui/UiLayoutManager.cpp
+    ../game/outdoor/OutdoorGeometryUtils.cpp
+    ../game/outdoor/OutdoorLightingRuntime.cpp
+    ../game/outdoor/OutdoorLightingData.cpp
+    ../game/outdoor/OutdoorMapData.cpp
+    ../game/outdoor/OutdoorNavigationData.cpp
+    ../game/outdoor/OutdoorRenderData.cpp
+    ../game/outdoor/OutdoorMechanismRuntime.cpp
+    ../game/outdoor/OutdoorMovementController.cpp
+    ../game/outdoor/OutdoorMovementDriver.cpp
+    ../game/outdoor/OutdoorPathfindingBuilder.cpp
+    ../game/outdoor/OutdoorPartyRuntime.cpp
+    ../game/pathfinding/ActorPathRuntime.cpp
+    ../game/pathfinding/PathMap.cpp
+    ../game/pathfinding/PathPlanner.cpp
+    ../tools/LegacyLuaExport.cpp
+    ../tools/legacy_events/EvtProgram.cpp
+    ../tools/legacy_events/StrTable.cpp
+)
+
+target_include_directories(openyamm_unit_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/third_party/doctest
+        ${OPENYAMM_BGFX_SOURCE_DIR}/include
+        ${OPENYAMM_BIMG_SOURCE_DIR}/include
+        ${OPENYAMM_BX_SOURCE_DIR}/include
+)
+
+target_compile_features(openyamm_unit_tests PRIVATE cxx_std_20)
+
+target_compile_definitions(openyamm_unit_tests
+    PRIVATE
+        OPENYAMM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(openyamm_unit_tests
+    PRIVATE
+        openyamm_bgfx
+        SDL3::SDL3
+        physfs-static
+        ${OPENYAMM_LUA_TARGET}
+        yaml-cpp::yaml-cpp
+)
+
+target_include_directories(openyamm_unit_tests
+    PRIVATE
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/include"
+)
+
+target_link_libraries(openyamm_unit_tests
+    PRIVATE
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/lib/libavformat.a"
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/lib/libavcodec.a"
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/lib/libswresample.a"
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/lib/libswscale.a"
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/lib/libavutil.a"
+)
+
+add_dependencies(openyamm_unit_tests openyamm_ffmpeg_build)
+
+if (UNIX AND NOT APPLE)
+    target_link_options(openyamm_unit_tests
+        PRIVATE
+            "-Wl,-rpath,$ORIGIN/../_deps/sdl3-build"
+    )
+endif()
+
+add_test(NAME openyamm_unit_tests COMMAND openyamm_unit_tests)
+
+add_executable(openyamm_video_streaming_tests
+    VideoStreamingTests.cpp
+)
+
+target_include_directories(openyamm_video_streaming_tests
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/third_party/doctest
+)
+
+target_compile_features(openyamm_video_streaming_tests PRIVATE cxx_std_20)
+
+target_compile_definitions(openyamm_video_streaming_tests
+    PRIVATE
+        OPENYAMM_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(openyamm_video_streaming_tests
+    PRIVATE
+        openyamm_game
+        openyamm_bgfx
+        SDL3::SDL3
+)
+
+add_test(NAME openyamm_video_streaming_tests COMMAND openyamm_video_streaming_tests)

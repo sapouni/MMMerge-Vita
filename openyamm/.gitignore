@@ -1,0 +1,17 @@
+/build/
+/build-gprof/
+/out/
+/.idea/
+/.vscode/
+.DS_Store
+/test_img/
+/script_dumps/*
+__pycache__/
+*.pyc
+/docs/
+/_codex/
+/reference/
+/saves/
+/android/signing.properties
+/android/keystores/
+/android/app-release.apk

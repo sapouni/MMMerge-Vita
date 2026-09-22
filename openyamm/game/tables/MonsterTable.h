@@ -1,0 +1,268 @@
+#pragma once
+
+#include "game/party/SkillData.h"
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace OpenYAMM::Game
+{
+class MergedBolsterMonsterTable;
+
+enum class MonsterSpecialAttackKind : uint8_t
+{
+    None,
+    Curse,
+    Weak,
+    Sleep,
+    Fear,
+    Drunk,
+    Insane,
+    PoisonWeak,
+    PoisonMedium,
+    PoisonSevere,
+    DiseaseWeak,
+    DiseaseMedium,
+    DiseaseSevere,
+    Paralyze,
+    Unconscious,
+    Dead,
+    Petrify,
+    Eradicate,
+    BreakAny,
+    BreakArmor,
+    BreakWeapon,
+    Aging,
+    ManaDrain,
+};
+
+enum class MonsterKind : uint32_t
+{
+    Undead = 1u << 0,
+    Dragon = 1u << 1,
+    Swimmer = 1u << 2,
+    Immobile = 1u << 3,
+    Peasant = 1u << 4,
+    NoArena = 1u << 5,
+    Ogre = 1u << 6,
+    Elemental = 1u << 7,
+    Titan = 1u << 8,
+    NoCorpse = 1u << 9,
+    Demon = 1u << 10,
+    Elf = 1u << 11,
+};
+
+uint32_t monsterKindFlag(MonsterKind kind);
+
+struct MonsterEntry
+{
+    uint16_t height = 0;
+    uint16_t radius = 0;
+    uint16_t movementSpeed = 0;
+    int16_t toHitRadius = 0;
+    uint32_t tintColor = 0;
+    std::array<uint16_t, 4> soundSampleIds = {};
+    std::string internalName;
+    std::array<std::string, 8> spriteNames = {};
+};
+
+class MonsterTable
+{
+public:
+    enum class MonsterMovementType
+    {
+        Short,
+        Medium,
+        Long,
+        Global,
+        Free,
+        Stationary,
+    };
+
+    enum class MonsterAiType
+    {
+        Suicide,
+        Wimp,
+        Normal,
+        Aggressive,
+    };
+
+    enum class MonsterAttackStyle
+    {
+        MeleeOnly,
+        MixedMeleeRanged,
+        Ranged,
+    };
+
+    enum class LootItemKind
+    {
+        None,
+        Any,
+        Weapon,
+        Armor,
+        Misc,
+        Gem,
+        Ring,
+        Amulet,
+        Boots,
+        Gauntlets,
+        Cloak,
+        Wand,
+        Ore,
+        Scroll,
+        Sword,
+        Dagger,
+        Axe,
+        Spear,
+        Chain,
+        Leather,
+        Plate,
+        Mace,
+        Club,
+        Staff,
+        Bow,
+        Shield,
+        Helm,
+        Belt,
+    };
+
+    struct LootPrototype
+    {
+        int goldDiceRolls = 0;
+        int goldDiceSides = 0;
+        int itemChance = 0;
+        int itemLevel = 0;
+        LootItemKind itemKind = LootItemKind::None;
+    };
+
+    struct MonsterStatsEntry
+    {
+        struct DamageProfile
+        {
+            int diceRolls = 0;
+            int diceSides = 0;
+            int bonus = 0;
+        };
+
+        int id = 0;
+        std::string name;
+        std::string pictureName;
+        int level = 0;
+        int hitPoints = 0;
+        int armorClass = 0;
+        int experience = 0;
+        std::string attack1Type;
+        bool bloodSplatOnDeath = false;
+        int hostility = 0;
+        int speed = 0;
+        int recovery = 0;
+        uint32_t attackPreferences = 0;
+        std::string specialAttackDescriptor;
+        MonsterSpecialAttackKind specialAttackKind = MonsterSpecialAttackKind::None;
+        int specialAttackLevel = 0;
+        bool canFly = false;
+        MonsterMovementType movementType = MonsterMovementType::Short;
+        MonsterAiType aiType = MonsterAiType::Suicide;
+        std::string attack1MissileType;
+        bool attack1HasMissile = false;
+        DamageProfile attack1Damage = {};
+        std::string attack2Type;
+        std::string attack2MissileType;
+        bool attack2HasMissile = false;
+        int attack2Chance = 0;
+        DamageProfile attack2Damage = {};
+        std::string spell1Descriptor;
+        std::string spell1Name;
+        bool hasSpell1 = false;
+        int spell1UseChance = 0;
+        uint32_t spell1SkillLevel = 0;
+        SkillMastery spell1SkillMastery = SkillMastery::None;
+        std::string spell2Descriptor;
+        std::string spell2Name;
+        bool hasSpell2 = false;
+        int spell2UseChance = 0;
+        uint32_t spell2SkillLevel = 0;
+        SkillMastery spell2SkillMastery = SkillMastery::None;
+        MonsterAttackStyle attackStyle = MonsterAttackStyle::MeleeOnly;
+        int fireResistance = 0;
+        int airResistance = 0;
+        int waterResistance = 0;
+        int earthResistance = 0;
+        int mindResistance = 0;
+        int spiritResistance = 0;
+        int bodyResistance = 0;
+        int lightResistance = 0;
+        int darkResistance = 0;
+        int physicalResistance = 0;
+        std::string treasureDefinition;
+        LootPrototype loot = {};
+        uint16_t attackSoundId = 0;
+        uint16_t deathSoundId = 0;
+        uint16_t winceSoundId = 0;
+        uint16_t boredSoundId = 0;
+        uint32_t kindFlags = 0;
+
+        bool hasKind(MonsterKind kind) const;
+    };
+
+    struct MonsterDisplayNameEntry
+    {
+        int id = 0;
+        std::string pictureName;
+        std::string displayName;
+    };
+
+    struct MonsterDeathDropEntry
+    {
+        int monsterId = 0;
+        std::string monsterName;
+        uint32_t itemId = 0;
+        std::string itemName;
+        int chancePercent = 0;
+        std::string description;
+    };
+
+    bool loadEntriesFromRows(const std::vector<std::vector<std::string>> &rows);
+    bool loadFromBytes(const std::vector<uint8_t> &bytes);
+    bool loadDisplayNamesFromRows(const std::vector<std::vector<std::string>> &rows);
+    bool loadStatsFromRows(const std::vector<std::vector<std::string>> &rows);
+    bool applyKindFlagsFromBolsterMonsterTable(const MergedBolsterMonsterTable &bolsterMonsterTable);
+    bool loadDeathDropsFromRows(const std::vector<std::vector<std::string>> &rows);
+    bool loadRelationsFromRows(const std::vector<std::vector<std::string>> &rows);
+    bool loadUniqueNamesFromRows(const std::vector<std::vector<std::string>> &rows);
+    const MonsterEntry *findByInternalName(const std::string &internalName) const;
+    const MonsterEntry *findById(int16_t monsterId) const;
+    const MonsterStatsEntry *findStatsById(int16_t monsterId) const;
+    const std::vector<MonsterDeathDropEntry> &deathDropsForMonsterId(int16_t monsterId) const;
+    const MonsterStatsEntry *findStatsByPictureName(const std::string &pictureName) const;
+    const MonsterDisplayNameEntry *findDisplayEntryById(int id) const;
+    std::optional<std::string> findDisplayNameByInternalName(const std::string &internalName) const;
+    std::optional<std::string> getUniqueName(int32_t uniqueNameIndex) const;
+    int getRelationToParty(int16_t monsterId) const;
+    int getRelationBetweenMonsters(int16_t leftMonsterId, int16_t rightMonsterId) const;
+    bool isHostileToParty(int16_t monsterId) const;
+    bool isLikelySameFaction(int16_t leftMonsterId, int16_t rightMonsterId) const;
+    const std::vector<MonsterEntry> &getEntries() const;
+    const std::unordered_map<int, MonsterStatsEntry> &statsEntries() const;
+
+private:
+    static size_t relationIndexForMonsterId(int16_t monsterId);
+
+    std::vector<MonsterEntry> m_entries;
+    std::unordered_map<std::string, int16_t> m_entryIndexByInternalName;
+    std::vector<MonsterDisplayNameEntry> m_displayNames;
+    std::vector<size_t> m_displayNameIndexById;
+    std::unordered_map<std::string, size_t> m_displayNameIndexByPictureName;
+    std::vector<std::string> m_uniqueNames;
+    std::unordered_map<int, MonsterStatsEntry> m_statsById;
+    std::unordered_map<int, std::vector<MonsterDeathDropEntry>> m_deathDropsByMonsterId;
+    std::unordered_map<std::string, int> m_statsIdByPictureName;
+    // First non-wimpy alphabetic token, normalized by loadRelationsFromRows.
+    std::vector<std::string> m_relationFactionKeys;
+    std::vector<std::vector<int>> m_relations;
+};
+}
