@@ -29,7 +29,7 @@ The port runs an adapted ARMv7 Android engine through the Vita community's share
 | PS Vita with homebrew enabled | [VitaShell](https://github.com/TheOfficialFloW/VitaShell/releases) to transfer files and install the VPK. |
 | **kubridge** | The kernel plugin installed **and loaded**. See [kubridge releases](https://github.com/bythos14/kubridge/releases). Reboot after installing or changing kernel plugins. |
 | **libshacccg.suprx** | The extracted shader compiler at `ur0:data/libshacccg.suprx`. Follow [ShaRKF00D's setup instructions](https://github.com/OsirizX/ShaRKF00D#install-instructions). |
-| Prepared OpenYAMM data | The five archives ( engine.zip, mmmerge.zip, mm6.zip, mm7.zip, mm8.zip ) See the [upstream OpenYAMM project]([https://github.com/pjasicek/openyamm](https://github.com/pjasicek/openyamm/releases/tag/0.13)) releases and download the windows build to find the 5 files. |
+| Prepared OpenYAMM data | The five archives ( engine.zip, mmmerge.zip, mm6.zip, mm7.zip, mm8.zip ) See the [upstream OpenYAMM project]([https://github.com/pjasicek/openyamm/releases/tag/0.13]) releases and download the windows build to find the 5 files. |
 | Free storage | The tested five archives total about **1.4 GB**. Leave additional space for the app, generated caches and saves. |
 
 You do **not** need an Android APK or a separate vitaGL installation. The Vita program and supporting libraries are already in the VPK.
