@@ -1,7 +1,8 @@
 VITA PREREQUISITES - fresh installations only
 
-An already working MMmerge Vita installation needs no plugin changes for 01.51.
-This ZIP supplies the app and game data, not a modified console firmware.
+An already working MMMerge Vita installation needs no plugin changes for 01.51.
+The game update ZIP supplies the app. Generate game data with the separate
+Windows Asset Builder. No modified console firmware is supplied.
 
 Required on physical Vita:
 - Homebrew-capable Vita and VitaShell.
