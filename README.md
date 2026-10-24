@@ -35,7 +35,7 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 ## Downloads
 
-**Release upload in progress.** The 01.51 app and builder attachments are being published; this notice will be removed once verified.
+**01.51 release pending verification.** The app and Windows builder are not published yet; the generated game data is receiving an additional check before release.
 
 
 | Download | Use it for |
