@@ -107,7 +107,7 @@ No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is nee
 
 Most data is extracted, converted or patched locally from the originals. Bundled supplemental content provides the merged scripts, tables, scenes, extra art/voices, custom maps and remaining residual media. Its inventory is included. Some supplemental-media provenance remains untraced; the tool is not claimed to contain zero original-derived payload. Original installers and original LOD/SND/VID containers are not bundled.
 
-**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. Representative clips passed stream/duration/audio/decode checks. Generated data has not yet received a full physical Vita playthrough. See [builder details](docs/ASSET-BUILDER.md).
+**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. All **438 unique clips**, covering the **529 video paths**, passed full desktop decoding and original-stream timing/audio checks. Generated data has not yet received a full physical Vita playthrough. See [builder details](docs/ASSET-BUILDER.md).
 
 ## Choose your adventure
 
