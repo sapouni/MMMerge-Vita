@@ -72,5 +72,59 @@
     "patched_bytes_copied_from_originals": 259433330,
     "locally_transcoded_reference_bytes": 235668486,
     "percent_definition": "Reference output bytes belonging to direct extraction, locally source-patched assets, or original video conversions; patches also supply changed bytes."
+  },
+  "independent_fresh_user_output_verification": {
+    "status": "PASS",
+    "files": 53745,
+    "nonvideo_identical": 53216,
+    "missing_or_unexpected_paths": 0,
+    "build_report_archive_hashes": "5/5 MATCH",
+    "supported_input_manifest": "71/71 MATCH",
+    "videos": {
+      "status": "PASS",
+      "unique_clips": 438,
+      "output_paths": 529,
+      "full_decode": true,
+      "timing_audio_format_checks": "PASS",
+      "seconds": 47.67
+    },
+    "archives": [
+      {
+        "path": "engine.zip",
+        "files": 43010,
+        "bytes": 447210951,
+        "sha256": "a0e07b1435564c3fb4c7d08134c3844def0c2a181a733750652c2541224a0873",
+        "crc": "PASS"
+      },
+      {
+        "path": "worlds/mm6.zip",
+        "files": 4367,
+        "bytes": 261144153,
+        "sha256": "928419ac8161fca837d1d5ed66bb2b27e491729cd4b47319ae0c2706e2bbb202",
+        "crc": "PASS"
+      },
+      {
+        "path": "worlds/mm7.zip",
+        "files": 3439,
+        "bytes": 198344677,
+        "sha256": "5fc4a6143cc01f7e7a241ad881ffc755eda122b17cec6b91e04b332e30375494",
+        "crc": "PASS"
+      },
+      {
+        "path": "worlds/mm8.zip",
+        "files": 2826,
+        "bytes": 211682497,
+        "sha256": "6e6f4e58cf61aba0ce66259477954c5aabcfc78e7d289c68635e3b0b40109c9a",
+        "crc": "PASS"
+      },
+      {
+        "path": "worlds/mmmerge.zip",
+        "files": 103,
+        "bytes": 7269043,
+        "sha256": "74a5740f6ef800d9ae3ab654d704fbb29a137bfc9291566ff4e6b917b9319518",
+        "crc": "PASS"
+      }
+    ],
+    "limits": "Desktop validation only. Physical Vita playback, loading performance and complete playthrough remain unverified; ZIP compression differs from prepared data."
   }
 }
