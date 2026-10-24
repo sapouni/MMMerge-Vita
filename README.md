@@ -1,25 +1,48 @@
 # MMMerge Vita
 
-![MMMerge Vita](docs/images/logo.png)
+![MMMerge Vita main menu](docs/images/screenshots/main-menu.png)
 
 **Might and Magic VI, VII and VIII on PlayStation Vita, through OpenYAMM.**
 
-[Download 01.51](https://github.com/sapouni/MMerge-Vita/releases) · [Install](#installation) · [Build game data](#windows-asset-builder) · [Controls](#controls) · [Credits](#credits)
+[Download 01.51](https://github.com/sapouni/MMerge-Vita/releases/tag/v01.51) · [Install](#installation) · [Build game data](#windows-asset-builder) · [Controls](#controls) · [Credits](#credits)
 
 MMMerge Vita is an unofficial Vita port of [OpenYAMM](https://github.com/pjasicek/openyamm), bringing together the worlds of Might and Magic VI, VII and VIII. Choose Enroth, Antagarich or Jadame as your starting world. Vita controls, remappable shortcuts, a touchscreen aiming option, native-resolution menus and an in-game guide are included.
 
 **Current playtest: 01.51. Windows Asset Builder: 0.3.0.** This is a work in progress. Crowded dungeons can still slow down and console/debug loading can still fail. 01.51 has desktop build/behavior checks; physical acceptance of this exact candidate and the newly generated data remains pending. No minimum framerate is promised. The repository remains private.
 
+## Screenshots
+
+Custom Vita menus and controls alongside the original adventures. Click any image for the full-size screenshot. These captures show the interface and game content; they are not performance benchmarks.
+
+| Remappable Vita controls and touch aiming | Full-screen adventurer's guide |
+|---|---|
+| [![Vita controls overview](docs/images/screenshots/controls.png)](docs/images/screenshots/controls.png) | [![Adventurer's guide](docs/images/screenshots/guide.png)](docs/images/screenshots/guide.png) |
+| **Choose a starting world** | **Separate adventures or one shared party** |
+| [![World selection](docs/images/screenshots/world-selection.png)](docs/images/screenshots/world-selection.png) | [![Adventure modes](docs/images/screenshots/adventure-modes.png)](docs/images/screenshots/adventure-modes.png) |
+| **Custom map pins saved with your game** | **Exploring the three worlds** |
+| [![Custom map markers](docs/images/screenshots/map-pins.png)](docs/images/screenshots/map-pins.png) | [![Outdoor gameplay](docs/images/screenshots/outdoor-gameplay.png)](docs/images/screenshots/outdoor-gameplay.png) |
+
+<details>
+<summary>More screenshots: dungeon combat, exploration and loading artwork</summary>
+
+![Dungeon combat](docs/images/screenshots/dungeon-combat.png)
+
+![Dungeon exploration](docs/images/screenshots/dungeon-exploration.png)
+
+![Full-screen loading artwork](docs/images/screenshots/loading-screen.png)
+
+</details>
+
 ## Downloads
 
-**Publication in progress:** the 01.51 release files and screenshot gallery are being attached. The updated instructions below describe the prepared packages; use the release listing to check availability.
+**Release upload in progress.** The 01.51 app and builder attachments are being published; this notice will be removed once verified.
 
 
 | Download | Use it for |
 |---|---|
-| [Game update ZIP — 97 MB](https://github.com/sapouni/MMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
-| [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game update ZIP. |
-| [SHA-256 checksums](https://github.com/sapouni/MMerge-Vita/releases) | Verify the downloaded files. |
+| [Game update ZIP — 97 MB](https://github.com/sapouni/MMerge-Vita/releases/download/v01.51/MMMerge-Vita-01.51-private-test.zip) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
+| [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMerge-Vita/releases/download/v01.51/MMMerge-Vita-Asset-Builder-0.3.0-Windows.zip) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game update ZIP. |
+| [SHA-256 checksums](https://github.com/sapouni/MMerge-Vita/releases/download/v01.51/SHA256SUMS.txt) | Verify the downloaded files. |
 
 Extract the downloaded ZIPs first. Read `START-HERE.txt` in the builder and `READ-ME-FIRST.txt` in the game update. GitHub's automatic **Source code** ZIPs are not the game installer. Prepared original-game archive sets are not release downloads here.
 
@@ -84,6 +107,13 @@ Most data is extracted, converted or patched locally from the originals. Bundled
 
 **Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. Representative clips passed stream/duration/audio/decode checks. Generated data has not yet received a full physical Vita playthrough. See [builder details](docs/ASSET-BUILDER.md).
 
+## Choose your adventure
+
+- **Separate adventures — recommended for newcomers:** each world has its own fresh party. The new-game screen recommends MM7/Antagarich and its island introduction. Scaling starts off at 100%.
+- **MMMerge — one shared party:** carry levels, equipment and progress between worlds. Scaling starts on at 100%; adjust it in **Vita settings → Adventures**.
+
+The choice belongs to the new adventure and does not change existing saves. Adventure settings explain the active save, scaling controls and explicit conversion choices. Back up saves before conversions. Custom map pins are stored in your save, and the full-screen Guide covers combat, spells, equipment, potions, companions and Vita-specific controls.
+
 ## Controls
 
 These are the common defaults; updates preserve existing bindings. **Vita settings → Controls** shows the current bindings on a Vita diagram, including the L layer.
@@ -110,7 +140,7 @@ Adaptive resolution responds to rendering pressure. It can stay high when enemy 
 
 ## Source and contributions
 
-The [release](https://github.com/sapouni/MMerge-Vita/releases) includes the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
+The [release](https://github.com/sapouni/MMerge-Vita/releases/tag/v01.51) includes the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
 
 Report the version, map/save, reproduction steps, changed settings and capture mode when [filing an issue](https://github.com/sapouni/MMerge-Vita/issues). Back up saves before testing updates or adventure conversions.
 
