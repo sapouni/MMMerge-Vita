@@ -1,6 +1,6 @@
 VITA PREREQUISITES - fresh installations only
 
-An already working MMMerge Vita installation needs no plugin changes for 01.51.
+An already working MMMerge Vita installation needs no plugin changes for 01.52.
 Download the standalone VPK for the app. Generate game data with the separate
 Windows Asset Builder. No modified console firmware is supplied.
 
@@ -21,13 +21,10 @@ Required on physical Vita:
   as ShaRKF00D. It is not supplied in this package.
 
 Optional fourth-core access:
-Download CapUnlocker.skprx and CapUnlocker-LICENSE.txt separately from:
-https://github.com/sapouni/MMMerge-Vita/releases
-The binary is unchanged from the optional testing ZIP. Its MIT source/license
-are by GrapheneCt. The testing ZIP also retains source under
-optional-plugins/CapUnlocker. Upstream:
-https://github.com/GrapheneCt/CapUnlocker
-If wanted, back up the active tai config, copy CapUnlocker.skprx to ur0:tai/,
+Download CapUnlocker.skprx from GrapheneCt's original releases:
+https://github.com/GrapheneCt/CapUnlocker/releases
+Source and MIT license: https://github.com/GrapheneCt/CapUnlocker
+01.52 does not redistribute the plugin. If wanted, back up the active tai config, copy CapUnlocker.skprx to ur0:tai/,
 add ur0:tai/CapUnlocker.skprx once under its existing *KERNEL section, and reboot.
 Copying the plugin alone does not activate it. This is optional, not required
 to boot the game. Fourth-core settings request a worker; access/work status in

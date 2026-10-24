@@ -1,5 +1,5 @@
 MMMerge Vita Asset Builder 0.3.0 - Windows x64
-Game-data target: the complete 01.51 runtime set (53,745 files).
+Game-data target: the complete 01.51 data set (53,745 files), used unchanged by 01.52.
 
 USE
 1. Extract this entire tool ZIP to a folder on the PC. Do not run it from inside

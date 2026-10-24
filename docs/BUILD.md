@@ -1,6 +1,7 @@
 # Current source/build status
 
-The 01.51 release provides the frozen engine/game/Vita source snapshot and the
+The 01.52 player release is a standalone VPK. Its exact source, symbols and
+configuration are retained locally. The 01.51 release provides the frozen engine/game/Vita source snapshot and the
 corresponding bgfx source snapshot as separate release ZIPs. The older checked-in
 openyamm/dependency tree below remains historical 01.06 material; do not assume
 that checking out the release tag and running those historical commands yields

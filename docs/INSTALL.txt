@@ -1,12 +1,11 @@
-MMMerge Vita 01.51: installation and updates
+MMMerge Vita 01.52: installation and updates
 
-Normal download: MMMerge-Vita-01.51.vpk (48 MB).
+Normal download: MMMerge-Vita-01.52.vpk (48 MB).
 https://github.com/sapouni/MMMerge-Vita/releases
 
 The VPK is the app installer. Keep it intact and install it through VitaShell.
 It includes the custom menus, in-game guide, shaders and game libraries.
-The private-test ZIP is optional and contains the same app plus manual-update
-files, test presets and diagnostic tools. It is not needed for normal play.
+01.52 is supplied as a standalone VPK; the old private-test ZIP is not needed.
 
 EXISTING PLAYERS
 Back up ux0:data/openyamm, then install the new VPK over app ID MMVITA001.
@@ -25,7 +24,7 @@ NEW PLAYERS
    ux0:data/openyamm/assets/worlds/mm7.zip
    ux0:data/openyamm/assets/worlds/mm8.zip
    ux0:data/openyamm/assets/worlds/mmmerge.zip
-4. Transfer MMMerge-Vita-01.51.vpk and install it with VitaShell.
+4. Transfer MMMerge-Vita-01.52.vpk and install it with VitaShell.
 5. Launch the game and open the Guide. Keep diagnostic recording off.
 
 No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is
@@ -33,8 +32,9 @@ needed. The builder reads the installed originals without changing them.
 The openyamm data-folder name and app ID remain current after the repo rename.
 
 A working physical installation needs no plugin/firmware change for this app
-update. CapUnlocker.skprx and its MIT license are separate optional downloads;
-the testing ZIP is not required to obtain them. A new kernel plugin must be
+update. Download the optional CapUnlocker plugin from its original releases:
+https://github.com/GrapheneCt/CapUnlocker/releases
+No kernel plugin is included in 01.52. A new kernel plugin must be
 listed once under the existing *KERNEL section in the active tai configuration,
 then the Vita must reboot. Preserve existing YAMT/SD2Vita/storage entries.
 The withdrawn libperf plugin is not supplied or required.
@@ -45,9 +45,14 @@ Do not install physical-console kernel plugins into the emulator.
 Previous testers: Vita settings -> Diagnostics -> Use test baseline; confirm,
 close/reopen the GAME. It keeps controls, graphics quality and adventure state.
 Use separate capture-off runs for normal FPS comparisons and capture-enabled
-runs for diagnosis. Hardware performance of exact 01.51 and a full playthrough
+runs for diagnosis. Hardware performance of exact 01.52 and a full playthrough
 of newly generated data remain unverified; last identity-verified device
 state was 01.50.
 
 Full setup, controls, screenshots and save instructions:
 https://github.com/sapouni/MMMerge-Vita
+
+01.52 defaults: recording OFF, world-resolution label hidden, slide console OFF.
+Existing preferences remain. Previous testers may turn these off individually
+in Vita Settings: Diagnostics, Graphics and Advanced respectively. The updated
+guide replaces an exact unedited older default; custom guide text is preserved.

@@ -8,7 +8,7 @@
 
 MMMerge Vita is an unofficial Vita port of [OpenYAMM](https://github.com/pjasicek/openyamm), bringing together the worlds of Might and Magic VI, VII and VIII. Choose Enroth, Antagarich or Jadame as your starting world. Vita controls, remappable shortcuts, a touchscreen aiming option, native-resolution menus and an in-game guide are included.
 
-**Current playtest: 01.51. Windows Asset Builder: 0.3.0.** This is a work in progress. Crowded dungeons can still slow down and console/debug loading can still fail. 01.51 has desktop build/behavior checks; physical acceptance of this exact candidate and the newly generated data remains pending. No minimum framerate is promised. The repository remains private.
+**Current playtest: 01.52. Windows Asset Builder: 0.3.0.** This is a work in progress. Crowded dungeons can still slow down and console/debug loading can still fail. 01.52 has desktop build/behavior checks; physical acceptance of this exact candidate and the newly generated data remains pending. No minimum framerate is promised.
 
 ## Screenshots
 
@@ -37,12 +37,12 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 | Download | Use it for |
 |---|---|
-| [Latest VPK — 48 MB (recommended)](https://github.com/sapouni/MMMerge-Vita/releases) | Download **MMMerge-Vita-01.51.vpk** and install it directly with VitaShell. Existing players with working game data need only this file. |
+| [Latest VPK — 48 MB (recommended)](https://github.com/sapouni/MMMerge-Vita/releases) | Download **MMMerge-Vita-01.52.vpk** and install it directly with VitaShell. Existing players with working game data need only this file. |
 | [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game VPK. |
 
 **For normal play:** install the **VPK**; extract only the **Windows builder ZIP** if you need to create game data. Keep the VPK intact for VitaShell. The VPK already contains the custom menus, guide, shaders and game libraries.
 
-The **private-test ZIP is optional**: it contains the same VPK plus manual-update files, test presets and diagnostic tools. Installation and controls are documented on this page, and the Guide is inside the game. Source snapshots are for development. Prepared original-game archive sets are not hosted here.
+Older **private-test ZIPs** contain manual-update files, test presets and diagnostic tools. The 01.52 player download is the standalone VPK. Installation and controls are documented on this page, and the Guide is inside the game. Source snapshots are for development. Prepared original-game archive sets are not hosted here.
 
 ## Requirements
 
@@ -51,7 +51,7 @@ The **private-test ZIP is optional**: it contains the same VPK plus manual-updat
 | Homebrew-enabled Vita | [VitaShell](https://github.com/TheOfficialFloW/VitaShell/releases) for manual transfers and VPK installation. No firmware update is required for this release on a working setup. |
 | **kubridge installed and loaded** | The compatible release used by this port is [bythos14 v0.3.1_hotfix](https://github.com/bythos14/kubridge/releases/tag/v0.3.1_hotfix). Follow its setup instructions and reboot after changing kernel plugins. |
 | **libshacccg.suprx** | The extracted shader compiler at `ur0:data/libshacccg.suprx` or `ur0:data/external/libshacccg.suprx`. See [ShaRKF00D](https://github.com/OsirizX/ShaRKF00D#install-instructions). |
-| **CapUnlocker — fourth-core plugin** | Recommended for fourth-core jobs; optional to launch the game. Download **CapUnlocker.skprx** separately from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). [Setup is below](#first-time-plugin-setup); [source and license](https://github.com/GrapheneCt/CapUnlocker) are by GrapheneCt. Diagnostics shows whether access and worker jobs actually work. |
+| **CapUnlocker — fourth-core plugin** | Recommended for fourth-core jobs; optional to launch the game. Download **CapUnlocker.skprx** from [GrapheneCt’s releases](https://github.com/GrapheneCt/CapUnlocker/releases). [Setup is below](#first-time-plugin-setup); [source and license](https://github.com/GrapheneCt/CapUnlocker) are by GrapheneCt. Diagnostics shows whether access and worker jobs actually work. |
 | [Game data](#windows-asset-builder) | Create the five required archives from your installed MM6, MM7 and MM8 using the [Windows Asset Builder](#windows-asset-builder), or keep an existing matching prepared set. |
 | Storage | Allow about 2 GB on the Vita plus installation/cache/save space. The PC builder needs at least 8 GiB free on its output drive while converting. |
 
@@ -72,10 +72,10 @@ Keep your existing storage/YAMT/SD2Vita entries and avoid duplicate plugin entri
 
 ## Installation
 
-1. Download **MMMerge-Vita-01.51.vpk** from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). Keep it intact; install the VPK itself.
+1. Download **MMMerge-Vita-01.52.vpk** from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). Keep it intact; install the VPK itself.
 2. If you do not already have matching prepared game data, use the [Windows Asset Builder](#windows-asset-builder) to create it from your installed originals.
 3. Copy **engine.zip** and the **worlds** folder into `ux0:data/openyamm/assets/` exactly as shown below. Keep these five inner ZIPs packed.
-4. Transfer **MMMerge-Vita-01.51.vpk** to the Vita and install it through VitaShell. It creates the home-screen bubble on a fresh installation and updates **MMVITA001** on an existing one.
+4. Transfer **MMMerge-Vita-01.52.vpk** to the Vita and install it through VitaShell. It creates the home-screen bubble on a fresh installation and updates **MMVITA001** on an existing one.
 5. Launch the game. Leave diagnostic recording **off** for ordinary play. Open the in-game **Guide** for controls and adventure choices; the [settings section](#settings-and-testing) explains the recommended baseline for previous testers.
 
 ```text
@@ -89,7 +89,7 @@ ux0:data/openyamm/
         └── mmmerge.zip
 ```
 
-**The `openyamm` folder name is still current.** It is the path used by the 01.51 app, including saves and settings. The project/repository rename to **MMMerge Vita** does not change that folder or app ID **MMVITA001**.
+**The `openyamm` folder name is still current.** It is the path used by the 01.52 app, including saves and settings. The project/repository rename to **MMMerge Vita** does not change that folder or app ID **MMVITA001**.
 
 Do not rename the originals' LOD/SND/VID files to these ZIP names or unpack the five generated archives. `ux0` means the Vita's currently mounted application storage, often SD2Vita.
 
@@ -117,7 +117,7 @@ No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is nee
 
 Most data is extracted, converted or patched locally from the originals. Bundled supplemental content provides the merged scripts, tables, scenes, extra art/voices, custom maps and remaining residual media. Its inventory is included. Some supplemental-media provenance remains untraced; the tool is not claimed to contain zero original-derived payload. Original installers and original LOD/SND/VID containers are not bundled.
 
-**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. All **438 unique clips**, covering the **529 video paths**, passed full desktop decoding and original-stream timing/audio checks. A separate fresh user conversion also passed all five archive hashes and the complete file/video checks. The smaller MM6/MM7 ZIPs mainly reflect compression; no files are omitted. Physical Vita loading/playback performance and a full generated-data playthrough remain unverified. See [builder details](docs/ASSET-BUILDER.md).
+**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 data set used unchanged by 01.52; **529 videos** are locally re-encoded. All **438 unique clips**, covering the **529 video paths**, passed full desktop decoding and original-stream timing/audio checks. A separate fresh user conversion also passed all five archive hashes and the complete file/video checks. The smaller MM6/MM7 ZIPs mainly reflect compression; no files are omitted. Physical Vita loading/playback performance and a full generated-data playthrough remain unverified. See [builder details](docs/ASSET-BUILDER.md).
 
 ## Choose your adventure
 
@@ -174,15 +174,17 @@ In menus, move the pointer with the **left stick** and select with **Cross**, or
 
 ## Settings and testing
 
+**New installs default to diagnostics off, the resolution label hidden and the slide debug console disabled.** Existing personal settings are preserved. Previous testers can turn off **Record diagnostics** and **NPC movement timings** in Diagnostics, **Show world resolution** in Graphics, and **Slide debug console** in Advanced. Keep the standalone timeline off as well. The Guide starts with controls and practical play tips; world modes, travel and conversion are explained near its end.
+
 Use the in-game baseline before controlled testing: **Standard** compiler, existing fourth-core jobs/priority on, **outdoor facts off**, **Tighter indoor queries off**, **Shared actor helper pool off**. The baseline preserves controls, graphics quality and adventure state. The shared-pool switch is an experiment and requires restarting the game; it is not an established speed improvement.
 
 Keep **Record diagnostics**, NPC movement timings and timeline profiling **off** for normal play and FPS comparisons. Use a separate recording run for diagnosis; capture can slow the game. Compare the same save, route and settings. Crowded Alamos/map 180 and the starting-island cannon battle remain useful test scenes; an empty view is not an equivalent benchmark.
 
-Adaptive resolution responds to rendering pressure. It can stay high when enemy movement/AI is the limiting work; lowering pixel count does not reduce those calculations. Restart only when the setting explicitly says so. See [01.51 release notes](docs/releases/01.51.md) and [known issues](docs/KNOWN-ISSUES.md).
+Adaptive resolution responds to rendering pressure. It can stay high when enemy movement/AI is the limiting work; lowering pixel count does not reduce those calculations. Restart only when the setting explicitly says so. See [01.52 release notes](docs/releases/01.52.md) and [known issues](docs/KNOWN-ISSUES.md).
 
 ## Source and contributions
 
-The [release](https://github.com/sapouni/MMMerge-Vita/releases) also includes optional developer downloads: the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
+The [release](https://github.com/sapouni/MMMerge-Vita/releases) also includes optional developer downloads: the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. The exact 01.52 source, symbols and configuration are preserved locally; its changes are documented in the release notes. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone current build kit. See [build status](docs/BUILD.md).
 
 Report the version, map/save, reproduction steps, changed settings and capture mode when [filing an issue](https://github.com/sapouni/MMMerge-Vita/issues). Back up saves before testing updates or adventure conversions.
 
