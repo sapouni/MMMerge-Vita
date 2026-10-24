@@ -37,10 +37,12 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 | Download | Use it for |
 |---|---|
-| [Latest vpk release](https://github.com/sapouni/MMMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
-| [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the latest .vpk. |
+| [Latest VPK — 48 MB (recommended)](https://github.com/sapouni/MMMerge-Vita/releases) | Download **MMMerge-Vita-01.51.vpk** and install it directly with VitaShell. Existing players with working game data need only this file. |
+| [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game VPK. |
 
-Extract the downloaded ZIPs first. Read `START-HERE.txt` in the builder and `READ-ME-FIRST.txt` in the game update. GitHub's automatic **Source code** ZIPs are not the game installer. Prepared original-game archive sets are not release downloads here.
+**For normal play:** install the **VPK**; extract only the **Windows builder ZIP** if you need to create game data. Keep the VPK intact for VitaShell. The VPK already contains the custom menus, guide, shaders and game libraries.
+
+The **private-test ZIP is optional**: it contains the same VPK plus manual-update files, test presets and diagnostic tools. Installation and controls are documented on this page, and the Guide is inside the game. Source snapshots are for development. Prepared original-game archive sets are not hosted here.
 
 ## Requirements
 
@@ -49,7 +51,7 @@ Extract the downloaded ZIPs first. Read `START-HERE.txt` in the builder and `REA
 | Homebrew-enabled Vita | [VitaShell](https://github.com/TheOfficialFloW/VitaShell/releases) for manual transfers and VPK installation. No firmware update is required for this release on a working setup. |
 | **kubridge installed and loaded** | The compatible release used by this port is [bythos14 v0.3.1_hotfix](https://github.com/bythos14/kubridge/releases/tag/v0.3.1_hotfix). Follow its setup instructions and reboot after changing kernel plugins. |
 | **libshacccg.suprx** | The extracted shader compiler at `ur0:data/libshacccg.suprx` or `ur0:data/external/libshacccg.suprx`. See [ShaRKF00D](https://github.com/OsirizX/ShaRKF00D#install-instructions). |
-| **CapUnlocker — fourth-core plugin** | Recommended for fourth-core jobs; optional to launch the game. Included in the game update ZIP. Install and load [CapUnlocker](https://github.com/GrapheneCt/CapUnlocker), then reboot; see [plugin instructions](docs/PLUGINS.txt). Diagnostics shows whether access and worker jobs actually work. |
+| **CapUnlocker — fourth-core plugin** | Recommended for fourth-core jobs; optional to launch the game. Download **CapUnlocker.skprx** separately from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). [Setup is below](#first-time-plugin-setup); [source and license](https://github.com/GrapheneCt/CapUnlocker) are by GrapheneCt. Diagnostics shows whether access and worker jobs actually work. |
 | [Game data](#windows-asset-builder) | Create the five required archives from your installed MM6, MM7 and MM8 using the [Windows Asset Builder](#windows-asset-builder), or keep an existing matching prepared set. |
 | Storage | Allow about 2 GB on the Vita plus installation/cache/save space. The PC builder needs at least 8 GiB free on its output drive while converting. |
 
@@ -57,13 +59,24 @@ An Android APK, a separate vitaGL installation and the experimental libperf kern
 
 Keep working YAMT/SD2Vita entries intact and back up the active tai configuration before plugin changes. Copying a kernel plugin alone does not activate it. No plugin changes are needed just to update an already working installation.
 
+### First-time plugin setup
+
+For a fresh physical Vita setup, copy the compatible **kubridge.skprx** and, if using the fourth core, **CapUnlocker.skprx** to `ur0:tai/` with VitaShell. Add the applicable lines **under the existing `*KERNEL` section** of your active tai configuration:
+
+```text
+ur0:tai/kubridge.skprx
+ur0:tai/CapUnlocker.skprx
+```
+
+Keep your existing storage/YAMT/SD2Vita entries and avoid duplicate plugin entries. Reboot the Vita after adding a kernel plugin; copying its file alone does not activate it. The shader compiler is installed separately using ShaRKF00D as linked above. See [detailed plugin instructions](docs/PLUGINS.txt). A working setup needs no plugin changes for an app update. Vita3K does not use these physical-console plugins.
+
 ## Installation
 
-1. Download the game update ZIP and extract it on your PC.
+1. Download **MMMerge-Vita-01.51.vpk** from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). Keep it intact; install the VPK itself.
 2. If you do not already have matching prepared game data, use the [Windows Asset Builder](#windows-asset-builder) to create it from your installed originals.
 3. Copy **engine.zip** and the **worlds** folder into `ux0:data/openyamm/assets/` exactly as shown below. Keep these five inner ZIPs packed.
-4. Transfer **MMMerge-Vita-01.51.vpk** from the game update ZIP and install it through VitaShell. Use the VPK for a fresh installation so the game gets its home-screen bubble.
-5. Launch the game. Open **Vita settings → Diagnostics → Use test baseline**, confirm, then close/reopen the **game**. Leave diagnostic recording off for ordinary play. The in-game Guide explains controls and the adventure choices.
+4. Transfer **MMMerge-Vita-01.51.vpk** to the Vita and install it through VitaShell. It creates the home-screen bubble on a fresh installation and updates **MMVITA001** on an existing one.
+5. Launch the game. Leave diagnostic recording **off** for ordinary play. Open the in-game **Guide** for controls and adventure choices; the [settings section](#settings-and-testing) explains the recommended baseline for previous testers.
 
 ```text
 ux0:data/openyamm/
@@ -169,7 +182,7 @@ Adaptive resolution responds to rendering pressure. It can stay high when enemy 
 
 ## Source and contributions
 
-The [release](https://github.com/sapouni/MMMerge-Vita/releases) includes the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
+The [release](https://github.com/sapouni/MMMerge-Vita/releases) also includes optional developer downloads: the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
 
 Report the version, map/save, reproduction steps, changed settings and capture mode when [filing an issue](https://github.com/sapouni/MMMerge-Vita/issues). Back up saves before testing updates or adventure conversions.
 
@@ -187,6 +200,7 @@ This port depends on the original game creators, the Might and Magic community a
 | **[bythos14](https://github.com/bythos14/kubridge)** | The extended kubridge implementation used by this port. |
 | **[Rinnegatamante](https://github.com/Rinnegatamante/vitaGL) and contributors** | vitaGL, vitaShaRK and Vita graphics infrastructure. |
 | **[OsirizX](https://github.com/OsirizX/ShaRKF00D) and contributors** | ShaRKF00D shader-compiler extraction tooling. |
+| **[GrapheneCt](https://github.com/GrapheneCt/CapUnlocker)** | CapUnlocker, the optional fourth-core capability plugin (MIT license). |
 | **[VitaSDK contributors](https://github.com/vitasdk)** | The Vita homebrew toolchain and SDK. |
 | **bgfx/bx/bimg, SDL, FFmpeg, PhysicsFS, Lua and other dependency authors** | Rendering, platform support, media, asset access and scripting. Their notices remain with the included sources. |
 | **[sapouni](https://github.com/sapouni)** | Vita project coordination, extensive hardware playtesting, bug reports and feedback. |

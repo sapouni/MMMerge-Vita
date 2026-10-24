@@ -1,7 +1,7 @@
 VITA PREREQUISITES - fresh installations only
 
 An already working MMMerge Vita installation needs no plugin changes for 01.51.
-The game update ZIP supplies the app. Generate game data with the separate
+Download the standalone VPK for the app. Generate game data with the separate
 Windows Asset Builder. No modified console firmware is supplied.
 
 Required on physical Vita:
@@ -21,7 +21,10 @@ Required on physical Vita:
   as ShaRKF00D. It is not supplied in this package.
 
 Optional fourth-core access:
-The unchanged CapUnlocker binary, source and license are included under
+Download CapUnlocker.skprx and CapUnlocker-LICENSE.txt separately from:
+https://github.com/sapouni/MMMerge-Vita/releases
+The binary is unchanged from the optional testing ZIP. Its MIT source/license
+are by GrapheneCt. The testing ZIP also retains source under
 optional-plugins/CapUnlocker. Upstream:
 https://github.com/GrapheneCt/CapUnlocker
 If wanted, back up the active tai config, copy CapUnlocker.skprx to ur0:tai/,
@@ -38,5 +41,5 @@ plugins on this setup so its new entry can be removed in VitaShell. Keep your
 working storage configuration and backups intact.
 
 For Vita3K, use the same game files; these physical-console kernel-plugin steps
-do not apply. Nothing in this ZIP automatically edits a console or installs a
-plugin. The tester performs transfers manually.
+do not apply. The VPK and builder do not automatically edit a console or
+install a kernel plugin. Perform transfers and plugin setup manually.

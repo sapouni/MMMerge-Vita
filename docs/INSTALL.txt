@@ -1,23 +1,53 @@
-MMMerge Vita 01.51: manual installation
+MMMerge Vita 01.51: installation and updates
 
-Back up ux0:data/openyamm before updates. Install MMMerge-Vita-01.51.vpk
-over MMVITA001 through VitaShell. Saves and settings are outside the app.
-Leave working data in place. Do not delete/replace the whole data folder.
+Normal download: MMMerge-Vita-01.51.vpk (48 MB).
+https://github.com/sapouni/MMMerge-Vita/releases
 
-New players: extract the Windows Asset Builder 0.3.0 and select the installed
-English GOG MM6, MM7 and MM8 folders plus a new/empty output folder. It creates
-engine.zip and worlds/mm6.zip, mm7.zip, mm8.zip, mmmerge.zip. Keep those five
-archives packed under ux0:data/openyamm/assets. The app/VPK is separate.
-No separate Python, FFmpeg, MMMerge or OpenYAMM installation is needed.
+The VPK is the app installer. Keep it intact and install it through VitaShell.
+It includes the custom menus, in-game guide, shaders and game libraries.
+The private-test ZIP is optional and contains the same app plus manual-update
+files, test presets and diagnostic tools. It is not needed for normal play.
 
-Fresh consoles need compatible kubridge loaded and libshacccg installed; see
-PLUGINS.txt. A working installation needs no plugin/firmware change for 01.51.
+EXISTING PLAYERS
+Back up ux0:data/openyamm, then install the new VPK over app ID MMVITA001.
+Saves and settings are outside the app. Leave working game-data archives in
+place. Do not delete/replace the whole data folder or overwrite your settings.
+
+NEW PLAYERS
+1. Set up the physical-console prerequisites in PLUGINS.txt: compatible loaded
+   kubridge and libshacccg. CapUnlocker is optional for fourth-core access.
+2. Download the Windows Asset Builder 0.3.0 from the Releases page and extract
+   its whole ZIP. Select the installed English GOG MM6, MM7 and MM8 folders
+   and a new/empty output folder. Read START-HERE.txt in the tool.
+3. Keep its five generated archives packed in this layout:
+   ux0:data/openyamm/assets/engine.zip
+   ux0:data/openyamm/assets/worlds/mm6.zip
+   ux0:data/openyamm/assets/worlds/mm7.zip
+   ux0:data/openyamm/assets/worlds/mm8.zip
+   ux0:data/openyamm/assets/worlds/mmmerge.zip
+4. Transfer MMMerge-Vita-01.51.vpk and install it with VitaShell.
+5. Launch the game and open the Guide. Keep diagnostic recording off.
+
+No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is
+needed. The builder reads the installed originals without changing them.
+The openyamm data-folder name and app ID remain current after the repo rename.
+
+A working physical installation needs no plugin/firmware change for this app
+update. CapUnlocker.skprx and its MIT license are separate optional downloads;
+the testing ZIP is not required to obtain them. A new kernel plugin must be
+listed once under the existing *KERNEL section in the active tai configuration,
+then the Vita must reboot. Preserve existing YAMT/SD2Vita/storage entries.
 The withdrawn libperf plugin is not supplied or required.
 
-Use the same VPK/data on Vita and Vita3K; emulator kernel-plugin setup does not
-apply. Vita compatibility is the priority and the new generated set still needs
-a physical playthrough. Last identity-verified device state was 01.50.
+Vita3K uses the same VPK and data in its emulated ux0/data/openyamm/assets.
+Do not install physical-console kernel plugins into the emulator.
 
-Vita settings -> Diagnostics -> Use test baseline, confirm, close/reopen GAME.
-Keep captures off for ordinary play; separately recorded diagnosis can be slower.
-Full instructions: README.md, docs/ASSET-BUILDER.md and the release notes.
+Previous testers: Vita settings -> Diagnostics -> Use test baseline; confirm,
+close/reopen the GAME. It keeps controls, graphics quality and adventure state.
+Use separate capture-off runs for normal FPS comparisons and capture-enabled
+runs for diagnosis. Hardware performance of exact 01.51 and a full playthrough
+of newly generated data remain unverified; last identity-verified device
+state was 01.50.
+
+Full setup, controls, screenshots and save instructions:
+https://github.com/sapouni/MMMerge-Vita

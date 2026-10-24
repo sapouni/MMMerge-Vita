@@ -15,7 +15,8 @@ USE
    Videos can take several minutes. Wait for the completion message.
 5. Copy the resulting engine.zip and worlds folder into:
       ux0:data/openyamm/assets/
-   Leave the five inner ZIPs packed. Install the separate MMMerge Vita VPK.
+   Leave the five inner ZIPs packed. Install the standalone MMMerge Vita VPK
+   from https://github.com/sapouni/MMMerge-Vita/releases using VitaShell.
    INSTALL-DATA.txt and MMMerge-build-report.json describe and verify the output.
    The same archives are used on Vita and Vita3K. No personal saves/settings or
    plugins are written by this tool. It never connects to a Vita or the internet.
