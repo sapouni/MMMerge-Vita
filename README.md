@@ -37,7 +37,7 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 | Download | Use it for |
 |---|---|
-| [Game update ZIP — 97 MB](https://github.com/sapouni/MMMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
+| [Latest vpk release](https://github.com/sapouni/MMMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
 | [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game update ZIP. |
 
 Extract the downloaded ZIPs first. Read `START-HERE.txt` in the builder and `READ-ME-FIRST.txt` in the game update. GitHub's automatic **Source code** ZIPs are not the game installer. Prepared original-game archive sets are not release downloads here.
