@@ -35,7 +35,7 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 ## Downloads
 
-**01.51 release pending verification.** The app and Windows builder are not published yet; the generated game data is receiving an additional check before release.
+**01.51 upload in progress.** Independent checks of a fresh builder output passed; release attachments are being uploaded and will appear on the Releases page when publication is complete.
 
 
 | Download | Use it for |
@@ -107,7 +107,7 @@ No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is nee
 
 Most data is extracted, converted or patched locally from the originals. Bundled supplemental content provides the merged scripts, tables, scenes, extra art/voices, custom maps and remaining residual media. Its inventory is included. Some supplemental-media provenance remains untraced; the tool is not claimed to contain zero original-derived payload. Original installers and original LOD/SND/VID containers are not bundled.
 
-**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. All **438 unique clips**, covering the **529 video paths**, passed full desktop decoding and original-stream timing/audio checks. Generated data has not yet received a full physical Vita playthrough. See [builder details](docs/ASSET-BUILDER.md).
+**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. All **438 unique clips**, covering the **529 video paths**, passed full desktop decoding and original-stream timing/audio checks. A separate fresh user conversion also passed all five archive hashes and the complete file/video checks. The smaller MM6/MM7 ZIPs mainly reflect compression; no files are omitted. Physical Vita loading/playback performance and a full generated-data playthrough remain unverified. See [builder details](docs/ASSET-BUILDER.md).
 
 ## Choose your adventure
 
