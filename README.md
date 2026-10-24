@@ -35,9 +35,6 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 ## Downloads
 
-**01.51 upload in progress.** Independent checks of a fresh builder output passed; release attachments are being uploaded and will appear on the Releases page when publication is complete.
-
-
 | Download | Use it for |
 |---|---|
 | [Game update ZIP — 97 MB](https://github.com/sapouni/MMMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
