@@ -1,0 +1,96 @@
+{
+  "status": "PASS",
+  "samples": [
+    {
+      "path": "worlds/mm6/videos/Cutscenes/6intro.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "50000/3333",
+      "source_seconds": 136.45302,
+      "converted_seconds": 136.45302,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm6/videos/Cutscenes/mm6end1.ogv",
+      "width": 320,
+      "height": 200,
+      "fps": "50000/3333",
+      "source_seconds": 57.72756,
+      "converted_seconds": 57.72756,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm6/videos/Cutscenes/6losegame.ogv",
+      "width": 640,
+      "height": 480,
+      "fps": "50000/3333",
+      "source_seconds": 14.3319,
+      "converted_seconds": 14.3319,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm7/videos/Cutscenes/7intro.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "15/1",
+      "source_seconds": 176.0,
+      "converted_seconds": 176.021769,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm7/videos/Cutscenes/endgame 1 good.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "30/1",
+      "source_seconds": 125.533333,
+      "converted_seconds": 125.561905,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm7/videos/Cutscenes/7losegame.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "12/1",
+      "source_seconds": 14.5,
+      "converted_seconds": 14.541497,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm8/videos/Cutscenes/wingame.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "15/1",
+      "source_seconds": 85.4,
+      "converted_seconds": 85.420408,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm8/videos/Cutscenes/intro.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "15/1",
+      "source_seconds": 68.066667,
+      "converted_seconds": 68.092517,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    },
+    {
+      "path": "worlds/mm8/videos/Cutscenes/confluxkey.ogv",
+      "width": 320,
+      "height": 240,
+      "fps": "15/1",
+      "source_seconds": 39.066667,
+      "converted_seconds": 39.096599,
+      "audio_preserved": true,
+      "decode_3_seconds": "PASS"
+    }
+  ],
+  "limit": "Nine representative clips; not an exhaustive video playthrough or hardware test."
+}

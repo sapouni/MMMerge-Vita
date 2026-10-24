@@ -1,0 +1,76 @@
+{
+  "builder_version": "0.3.0",
+  "game_data_target": "01.51",
+  "complete_portable_end_to_end": "PASS",
+  "seconds": 587.17,
+  "verified_input_containers_and_loose_files": 71,
+  "nonvideo_files_identical_to_prepared_0151": 53216,
+  "video_files_identical_to_prepared_0151": 0,
+  "video_files_reencoded_differently": 529,
+  "archives": [
+    {
+      "archive": "engine.zip",
+      "files": 43010,
+      "bytes": 447210951,
+      "sha256": "a0e07b1435564c3fb4c7d08134c3844def0c2a181a733750652c2541224a0873",
+      "crc": "PASS",
+      "names": "MATCH"
+    },
+    {
+      "archive": "worlds/mm6.zip",
+      "files": 4367,
+      "bytes": 261144255,
+      "sha256": "3131d05fcda747e201ab486c223690815c2b41b7bc17d77c7aaa828a7ec69f4c",
+      "crc": "PASS",
+      "names": "MATCH"
+    },
+    {
+      "archive": "worlds/mm7.zip",
+      "files": 3439,
+      "bytes": 198344715,
+      "sha256": "8115dc6e5d52b1d943ae91b3a12dc82d665ecd2f123ccff42569e797119a9237",
+      "crc": "PASS",
+      "names": "MATCH"
+    },
+    {
+      "archive": "worlds/mm8.zip",
+      "files": 2826,
+      "bytes": 211682480,
+      "sha256": "a412ea0a62e1f2d9823949c0d77cdc77e8ac4d6f9cc754e40b41caa75fd899d1",
+      "crc": "PASS",
+      "names": "MATCH"
+    },
+    {
+      "archive": "worlds/mmmerge.zip",
+      "files": 103,
+      "bytes": 7269043,
+      "sha256": "74a5740f6ef800d9ae3ab654d704fbb29a137bfc9291566ff4e6b917b9319518",
+      "crc": "PASS",
+      "names": "MATCH"
+    }
+  ],
+  "originals_modified": false,
+  "source_isolation": "Bundled Python ._pth; no global Python or FFmpeg dependency",
+  "safety_tests": "9 behavioral tests PASS; corrupted/missing/overlapping inputs rejected",
+  "gui": "Compiled, constructed and rendered with bounds checked; not interactive click-tested",
+  "vita": "No direct device writes. New generated output not hardware-playtested.",
+  "reconstruction": {
+    "runtime_files": 53745,
+    "direct_files": 42895,
+    "source_patch_files": 3612,
+    "video_files": 529,
+    "supplemental_files": 6709,
+    "runtime_bytes": 2826487480,
+    "local_reference_bytes": 2592353245,
+    "local_reference_percent": 91.72,
+    "supplemental_uncompressed_bytes": 234134235,
+    "patch_bytes": 33571840,
+    "source_input_files": 71,
+    "provenance_limit": "Supplemental media is not fully traced; package is not asserted original-game-free.",
+    "direct_output_bytes": 2029004637,
+    "patched_output_bytes": 327680122,
+    "patched_bytes_copied_from_originals": 259433330,
+    "locally_transcoded_reference_bytes": 235668486,
+    "percent_definition": "Reference output bytes belonging to direct extraction, locally source-patched assets, or original video conversions; patches also supply changed bytes."
+  }
+}

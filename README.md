@@ -1,114 +1,118 @@
-# MMerge Vita
+# MMMerge Vita
 
-![MMerge Vita](docs/images/logo.png)
+![MMMerge Vita](docs/images/logo.png)
 
 **Might and Magic VI, VII and VIII on PlayStation Vita, through OpenYAMM.**
 
-[Download](https://github.com/sapouni/MMerge-Vita/releases/tag/v01.06-r2) · [Requirements](#requirements) · [Installation](#installation) · [Controls](#controls) · [Credits](#credits)
+[Download 01.51](https://github.com/sapouni/MMerge-Vita/releases) · [Install](#installation) · [Build game data](#windows-asset-builder) · [Controls](#controls) · [Credits](#credits)
 
----
+MMMerge Vita is an unofficial Vita port of [OpenYAMM](https://github.com/pjasicek/openyamm), bringing together the worlds of Might and Magic VI, VII and VIII. Choose Enroth, Antagarich or Jadame as your starting world. Vita controls, remappable shortcuts, a touchscreen aiming option, native-resolution menus and an in-game guide are included.
 
-## What this is
+**Current playtest: 01.51. Windows Asset Builder: 0.3.0.** This is a work in progress. Crowded dungeons can still slow down and console/debug loading can still fail. 01.51 has desktop build/behavior checks; physical acceptance of this exact candidate and the newly generated data remains pending. No minimum framerate is promised. The repository remains private.
 
-MMerge Vita is an unofficial PS Vita port of [OpenYAMM](https://github.com/pjasicek/openyamm), a modern reimplementation of Might and Magic VI, VII and VIII inspired by MMMerge. Choose a starting world and explore the three games with one party.
+## Downloads
 
-The port runs an adapted ARMv7 Android engine through the Vita community's shared-library loader and vitaGL. The engine, Vita controls, menus and supporting libraries are included in the installer; the prepared game-data archives are supplied separately.
+**Publication in progress:** the 01.51 release files and screenshot gallery are being attached. The updated instructions below describe the prepared packages; use the release listing to check availability.
 
-- **Three starting worlds:** Enroth (MM6), Antagarich (MM7) and Jadame (MM8).
-- **Vita controls:** twin-stick movement and aiming, touch input, remappable shortcuts and quick-spell assignment.
-- **Vita menus:** a beginner's guide, graphics and control settings, and the Vita keyboard for save names and bank amounts.
-- **Display:** 960 × 544 interface, with optional lower or adaptive 3D resolution.
-- **Status:** playable on a physical Vita, with ongoing compatibility and performance work. Large battles and crowded caves can still slow down.
 
-**Current package: 01.06 R2.** The repository and downloads are private for now. R2 contains the same game code as 01.06 under a new app identity to address LiveArea artwork registration. The separate artwork test passed; the new full-game bubble still awaits hardware confirmation.
+| Download | Use it for |
+|---|---|
+| [Game update ZIP — 97 MB](https://github.com/sapouni/MMerge-Vita/releases) | The Vita app/VPK, instructions, optional presets and diagnostic tools. Existing players normally need only this ZIP. |
+| [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game update ZIP. |
+| [SHA-256 checksums](https://github.com/sapouni/MMerge-Vita/releases) | Verify the downloaded files. |
+
+Extract the downloaded ZIPs first. Read `START-HERE.txt` in the builder and `READ-ME-FIRST.txt` in the game update. GitHub's automatic **Source code** ZIPs are not the game installer. Prepared original-game archive sets are not release downloads here.
 
 ## Requirements
 
 | Requirement | What you need |
 |---|---|
-| PS Vita with homebrew enabled | [VitaShell](https://github.com/TheOfficialFloW/VitaShell/releases) to transfer files and install the VPK. |
-| **kubridge** | The kernel plugin installed **and loaded**. See [kubridge releases](https://github.com/bythos14/kubridge/releases). Reboot after installing or changing kernel plugins. |
-| **libshacccg.suprx** | The extracted shader compiler at `ur0:data/libshacccg.suprx`. Follow [ShaRKF00D's setup instructions](https://github.com/OsirizX/ShaRKF00D#install-instructions). |
-| Prepared OpenYAMM data | The five archives ( engine.zip, mmmerge.zip, mm6.zip, mm7.zip, mm8.zip ) See the [upstream OpenYAMM project](https://github.com/pjasicek/openyamm/releases/tag/0.13) releases and download the windows build to find the 5 files. |
-| Free storage | The tested five archives total about **1.4 GB**. Leave additional space for the app, generated caches and saves. |
+| Homebrew-enabled Vita | [VitaShell](https://github.com/TheOfficialFloW/VitaShell/releases) for manual transfers and VPK installation. No firmware update is required for this release on a working setup. |
+| **kubridge installed and loaded** | The compatible release used by this port is [bythos14 v0.3.1_hotfix](https://github.com/bythos14/kubridge/releases/tag/v0.3.1_hotfix). Follow its setup instructions and reboot after changing kernel plugins. |
+| **libshacccg.suprx** | The extracted shader compiler at `ur0:data/libshacccg.suprx` or `ur0:data/external/libshacccg.suprx`. See [ShaRKF00D](https://github.com/OsirizX/ShaRKF00D#install-instructions). |
+| Game data | A matching prepared set already used with the port, or the five archives generated by the builder below. |
+| Storage | Allow about 2 GB on the Vita plus installation/cache/save space. The PC builder needs at least 8 GiB free on its output drive while converting. |
 
-You do **not** need an Android APK or a separate vitaGL installation. The Vita program and supporting libraries are already in the VPK.
+An Android APK, a separate vitaGL installation and the experimental libperf kernel plugin are **not required**. Do not enable the withdrawn libperf plugin from earlier private experiments.
+
+**Optional fourth core:** CapUnlocker is included with its source/license in the game ZIP. It is optional; fourth-core settings do not prove access by themselves. See [plugin instructions](docs/PLUGINS.txt). Keep working YAMT/SD2Vita entries intact and back up the active tai configuration before any plugin changes. No plugin changes are needed just to update an already working installation.
 
 ## Installation
 
-1. **Prepare the requirements above.** Install kubridge and the shader compiler if missing, then reboot the Vita.
-2. **Download the [01.06 R2 installer ZIP](https://github.com/sapouni/MMerge-Vita/releases/tag/v01.06-r2)** and extract it on your computer. The VPK is inside; GitHub's automatic “Source code” downloads are not the installer.
-3. **Copy the five prepared game-data archives** to `ux0:data/openyamm/assets/`, exactly as shown below. Keep these inner archives zipped.
-4. **Transfer `MMerge-Vita-01.06-R2.vpk`** using VitaShell USB or FTP. When the transfer finishes, leave USB mode and install the VPK in VitaShell.
-5. **Launch the new MMerge Vita bubble.** If the startup check lists a missing requirement, fix that item first. Choose New Game and a starting world, or load your save. The in-game Guide explains the basic systems and controls.
-
-### Game-data folder
+1. Download the game update ZIP and extract it on your PC.
+2. If you do not already have matching prepared game data, use the [Windows Asset Builder](#windows-asset-builder) to create it from your installed originals.
+3. Copy **engine.zip** and the **worlds** folder into `ux0:data/openyamm/assets/` exactly as shown below. Keep these five inner ZIPs packed.
+4. Transfer **MMMerge-Vita-01.51.vpk** from the game update ZIP and install it through VitaShell. Use the VPK for a fresh installation so the game gets its home-screen bubble.
+5. Launch the game. Open **Vita settings → Diagnostics → Use test baseline**, confirm, then close/reopen the **game**. Leave diagnostic recording off for ordinary play. The in-game Guide explains controls and the adventure choices.
 
 ```text
 ux0:data/openyamm/
 └── assets/
     ├── engine.zip
     └── worlds/
-        ├── mmmerge.zip
         ├── mm6.zip
         ├── mm7.zip
-        └── mm8.zip
+        ├── mm8.zip
+        └── mmmerge.zip
 ```
 
-These are **OpenYAMM-prepared archives**, not files taken unchanged from a GOG installation. `engine.zip` contains shared game data; it is separate from the executable included in the VPK. Original game-data archives are not hosted here.
+Do not rename the originals' LOD/SND/VID files to these ZIP names or unpack the five generated archives. `ux0` means the Vita's currently mounted application storage, often SD2Vita.
 
-Use a matching set; do not rename raw game files to these names. Compatibility with every future upstream asset revision is not guaranteed. The [tested data manifest](vita/game-data-manifest.json) records the set used during development.
+### Updating without losing saves
 
-### Updating an existing installation
+Back up `ux0:data/openyamm` first, then install the new VPK over app ID **MMVITA001**. Saves and personal settings are outside the installed app and are not included or replaced by the update. Leave working game-data archives in place. Do not replace or delete the whole data folder and do not overwrite your settings with a preset fragment.
 
-- Back up `ux0:data/openyamm` first. Saves, settings and caches live there, outside the installed app.
-- If the archives are already in the folder above, **leave them there**; no large transfer is needed.
-- If they are still under `ux0:app/OYAM00001/assets`, copy the five archives into the data-folder layout above first.
-- R2 installs a **new bubble**, app ID `MMVITA001`. Keep the old `OYAM00001` bubble until the new one launches and finds your saves. Both use the same data folder.
-- For later updates to the new bubble, install the new VPK over it and follow that release's instructions.
+Very old installs using **OYAM00001** should move their five archives from the old app folder into the layout above, retaining backups and the old bubble until the new app finds their data. See [detailed installation notes](docs/INSTALL.txt).
 
-No manual `app.db` edits or artwork-cache copying are needed. See [detailed installation notes](docs/INSTALL.txt) if you use a custom asset path.
+### Vita3K
+
+Use the **same VPK and generated data files**. Install the VPK and place the archives in Vita3K's emulated `ux0/data/openyamm/assets`. Do not install the physical-console kernel plugins into the emulator. Hardware Vita is the priority; emulator compatibility is not guaranteed and does not replace physical testing.
+
+## Windows Asset Builder
+
+1. Install the original **English GOG** releases of MM6, MM7 and MM8.
+2. Extract the entire builder ZIP. Run **MMMerge Vita Asset Builder.exe**, keeping its `_internal` folder and other files beside it.
+3. Select the three installed game folders themselves, **not** their `Data` folders or installers.
+4. Choose a **new or empty output folder**, then press **Build complete game data**. Allow at least 8 GiB free on that drive. Video conversion can take several minutes.
+5. After success, follow `INSTALL-DATA.txt` in the output and copy the five archives to the Vita. `MMMerge-build-report.json` records the output hashes.
+
+No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is needed. The tool reads the original games without modifying them and publishes only a fully verified output set. It never connects to the Vita or changes plugins/firmware.
+
+**Supported inputs are specific:** this version verifies 71 English GOG container/music files by size and SHA-256. Other revisions, languages, CD editions and modified files are rejected with an input error instead of silently producing incompatible data.
+
+Most data is extracted, converted or patched locally from the originals. Bundled supplemental content provides the merged scripts, tables, scenes, extra art/voices, custom maps and remaining residual media. Its inventory is included. Some supplemental-media provenance remains untraced; the tool is not claimed to contain zero original-derived payload. Original installers and original LOD/SND/VID containers are not bundled.
+
+**Validation:** the portable tool completed an end-to-end conversion. All **53,216 nonvideo files** match the prepared 01.51 runtime exactly; **529 videos** are locally re-encoded. Representative clips passed stream/duration/audio/decode checks. Generated data has not yet received a full physical Vita playthrough. See [builder details](docs/ASSET-BUILDER.md).
 
 ## Controls
 
-These are the defaults. Updates preserve existing custom bindings.
+These are the common defaults; updates preserve existing bindings. **Vita settings → Controls** shows the current bindings on a Vita diagram, including the L layer.
 
-| Vita input | In-game action |
+| Input | Action |
 |---|---|
-| Left stick | Move |
-| Right stick | Look / aim |
-| Cross (X) | Interact with the current target |
-| Square | Attack |
-| Circle | Cast the active character's quick spell; attack if none is assigned |
-| Triangle | Jump |
-| L / R | Inspect the crosshair target / open inventory |
-| D-pad up / down | Map / rest |
-| D-pad left / right | Spellbook / next character |
-| Select | Toggle turn-based combat |
-| Start | Open the game menu |
+| Left / right stick | Move / look |
+| Touchscreen | Precise camera aiming; drag the aiming area |
+| Cross / Square | Interact / attack |
+| Circle / Triangle | Quick spell / jump |
+| L / R | Inspect the target / open inventory |
+| D-pad | Configurable map, rest, spellbook and character shortcuts |
+| Select / Start | Combat mode / menu |
 
-**In menus:** move the pointer with the left stick and select with X, or use touch. Circle inspects inventory items; with an item held, it can apply that item instead.
+In menus, use the pointer and Cross or touch. Open the spellbook, select a learned spell with Cross and press **Triangle** to assign its quick-spell slot. Circle inspects there; in gameplay it casts the quick spell, with attack fallback if none is assigned. Hold L for the second shortcut layer. The in-game Guide covers inventory, potions, combat and merged-world changes.
 
-**Assign a quick spell:** open the spellbook, select a learned spell with X, then press **Triangle**. Close the book and use Circle to cast it. Circle still inspects spells while the book is open.
+## Settings and testing
 
-**More shortcuts:** hold L for a second set of bindings. L + D-pad up/down controls flight height when Fly is active. Open **Vita Settings → Controls** for all bindings and customization.
+Use the in-game baseline before controlled testing: **Standard** compiler, existing fourth-core jobs/priority on, **outdoor facts off**, **Tighter indoor queries off**, **Shared actor helper pool off**. The baseline preserves controls, graphics quality and adventure state. The shared-pool switch is an experiment and requires restarting the game; it is not an established speed improvement.
 
-## Settings and performance
+Keep **Record diagnostics**, NPC movement timings and timeline profiling **off** for normal play and FPS comparisons. Use a separate recording run for diagnosis; capture can slow the game. Compare the same save, route and settings. Crowded Alamos/map 180 and the starting-island cannon battle remain useful test scenes; an empty view is not an equivalent benchmark.
 
-Open **Vita** from the main menu or the Start menu. Settings include controller bindings, graphics options, an optional gameplay FPS cap and advanced diagnostics. Each setting indicates whether it needs a restart.
+Adaptive resolution responds to rendering pressure. It can stay high when enemy movement/AI is the limiting work; lowering pixel count does not reduce those calculations. Restart only when the setting explicitly says so. See [01.51 release notes](docs/releases/01.51.md) and [known issues](docs/KNOWN-ISSUES.md).
 
-Start with the defaults. Adaptive world resolution can help when 3D rendering is the limit while keeping the interface at native resolution. Large numbers of enemies can still cause slowdowns.
+## Source and contributions
 
-Keep **diagnostics off for normal play**. Captures help investigate problems but can reduce performance. Loading and first-time cache preparation may also take time.
+The [release](https://github.com/sapouni/MMerge-Vita/releases) includes the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone 01.51 build kit. See [build status](docs/BUILD.md).
 
-## Help
-
-- **Missing data:** check the folder layout, including `assets/worlds/` and the unchanged ZIP filenames.
-- **kubridge not detected:** confirm the plugin is loaded and reboot after any plugin change. Having the file on the card is not enough.
-- **Shader compiler missing:** check `ur0:data/libshacccg.suprx` and follow the extraction instructions linked above.
-- **Report a bug:** include the version, location, reproduction steps, changed settings and whether diagnostics were enabled.
-
-[Known issues](docs/KNOWN-ISSUES.md) · [Release notes](https://github.com/sapouni/MMerge-Vita/releases) · [Report an issue](https://github.com/sapouni/MMerge-Vita/issues)
+Report the version, map/save, reproduction steps, changed settings and capture mode when [filing an issue](https://github.com/sapouni/MMerge-Vita/issues). Back up saves before testing updates or adventure conversions.
 
 ## Credits
 

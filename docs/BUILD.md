@@ -1,3 +1,23 @@
+# Current source/build status
+
+The 01.51 release provides the frozen engine/game/Vita source snapshot and the
+corresponding bgfx source snapshot as separate release ZIPs. The older checked-in
+openyamm/dependency tree below remains historical 01.06 material; do not assume
+that checking out the release tag and running those historical commands yields
+the current VPK. A fresh-machine one-command 01.51 build kit is not claimed.
+
+The new builder source is in builder/. Its versioned data manifests, source
+patches and supplemental resources ship in the portable release rather than
+being added to Git history. Python/FFmpeg/runtime notices accompany that release.
+The standalone tool uses its bundled isolated Python and requires no Python
+installation. Resource preparation scripts describe the developer pipeline and
+expect its reference inputs; users simply run the released GUI.
+
+The cancelled PC-sampler project remains stopped; no profiler is installed or
+required by these downloads. Diagnostics remain opt-in.
+
+## Historical 01.06 build notes
+
 # Source and build status
 
 The `openyamm/` tree is the complete code/configuration snapshot of the delivered 01.06 port.

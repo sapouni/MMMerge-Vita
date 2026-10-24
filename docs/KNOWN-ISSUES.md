@@ -1,14 +1,13 @@
-# Known issues and test status
+# Known issues and validation limits
 
-- 01.06 installs and runs; its old OYAM00001 LiveArea shows only the bubble icon.
-  The identical art displays correctly in the separate OYAMART01 test app.
-  01.06 R2 uses a new MMVITA001 game identity; that full-game bubble awaits hardware confirmation.
-- Triangle spell assignment, cap behavior and the map-cache change passed host checks;
-  specific hardware results are not yet reported.
-- Crowded battles, multi-level caves and some transitions can remain slow. No guaranteed FPS target is advertised.
-- Adaptive world resolution can lower 3D clarity; HUD text stays at native resolution.
-- Record diagnostics only when needed; capture overhead is not a gameplay benchmark.
-- Exact future upstream asset compatibility has not been established. Keep backups of saves before updates.
-- The port uses a modified ARMv7/GLES2 path; updating to current upstream is not a drop-in library replacement.
-
-No gameplay changes were made for the separate OYAMART01 artwork-check app.
+- 01.51 is a playtest candidate. The last identity-verified device state was 01.50; newly generated assets and this candidate still need physical acceptance.
+- Crowded battles and multi-level dungeons can remain slow. No minimum FPS or new 01.51 speed gain is claimed. Prior console/map-loading crashes are not declared fixed by this packaging update.
+- Adaptive resolution responds to rendering pressure and can remain native when AI/movement is the bottleneck.
+- Diagnostics are opt-in and can slow the game. Compare capture-OFF runs separately from capture-enabled diagnosis.
+- The Shared actor helper pool test switch requires restarting the game; the baseline keeps it and Tighter indoor queries off.
+- Builder 0.3.0 accepts the exact verified English GOG files listed in its resources. Other editions/languages/revisions and modified originals are not supported silently.
+- All 53,216 generated nonvideo files match the prepared 01.51 runtime. Videos are locally re-encoded; representative host checks are not a complete media/hardware playthrough.
+- GUI construction/rendering/bounds were checked; full conversion was run through the bundled backend, not an interactive click test.
+- Some supplemental media provenance remains untraced. No originals-free supplement or legal clearance is claimed.
+- Vita3K uses the same files but is not a substitute for physical Vita testing.
+- Keep backups of saves before updates or adventure conversions; do not replace your settings with diagnostic preset fragments.

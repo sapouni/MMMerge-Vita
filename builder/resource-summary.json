@@ -1,0 +1,19 @@
+{
+  "runtime_files": 53745,
+  "direct_files": 42895,
+  "source_patch_files": 3612,
+  "video_files": 529,
+  "supplemental_files": 6709,
+  "runtime_bytes": 2826487480,
+  "local_reference_bytes": 2592353245,
+  "local_reference_percent": 91.72,
+  "supplemental_uncompressed_bytes": 234134235,
+  "patch_bytes": 33571840,
+  "source_input_files": 71,
+  "provenance_limit": "Supplemental media is not fully traced; package is not asserted original-game-free.",
+  "direct_output_bytes": 2029004637,
+  "patched_output_bytes": 327680122,
+  "patched_bytes_copied_from_originals": 259433330,
+  "locally_transcoded_reference_bytes": 235668486,
+  "percent_definition": "Reference output bytes belonging to direct extraction, locally source-patched assets, or original video conversions; patches also supply changed bytes."
+}

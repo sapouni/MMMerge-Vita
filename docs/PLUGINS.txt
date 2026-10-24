@@ -1,0 +1,41 @@
+VITA PREREQUISITES - fresh installations only
+
+An already working MMmerge Vita installation needs no plugin changes for 01.51.
+This ZIP supplies the app and game data, not a modified console firmware.
+
+Required on physical Vita:
+- Homebrew-capable Vita and VitaShell.
+- A compatible kubridge loaded through taiHEN. The version previously used by
+  this port is bythos14 v0.3.1_hotfix:
+  https://github.com/bythos14/kubridge/releases/tag/v0.3.1_hotfix
+  Follow that project's installation instructions. If installing for the first
+  time, back up your active tai config, copy kubridge.skprx to ur0:tai/, add
+  ur0:tai/kubridge.skprx once under the existing *KERNEL section and reboot.
+  Preserve working storage/YAMT/SD2Vita entries. Do not replace config.txt with
+  a generic file or assume ux0:tai is the active config on every console.
+- libshacccg.suprx (Vita shader compiler), installed at either:
+    ur0:data/libshacccg.suprx
+    ur0:data/external/libshacccg.suprx
+  Obtain it using the normal Vita shader-compiler extraction procedure, such
+  as ShaRKF00D. It is not supplied in this package.
+
+Optional fourth-core access:
+The unchanged CapUnlocker binary, source and license are included under
+optional-plugins/CapUnlocker. Upstream:
+https://github.com/GrapheneCt/CapUnlocker
+If wanted, back up the active tai config, copy CapUnlocker.skprx to ur0:tai/,
+add ur0:tai/CapUnlocker.skprx once under its existing *KERNEL section, and reboot.
+Copying the plugin alone does not activate it. This is optional, not required
+to boot the game. Fourth-core settings request a worker; access/work status in
+Diagnostics and the logs show whether it actually became available. A setting
+being ON is not proof that the core is in use or that FPS will improve.
+
+The withdrawn libperf kernel plugin is NOT supplied or required. Leave it
+disabled on this project's test setup; an earlier experiment caused boot loops.
+If a newly added plugin prevents booting, holding L during boot can bypass
+plugins on this setup so its new entry can be removed in VitaShell. Keep your
+working storage configuration and backups intact.
+
+For Vita3K, use the same game files; these physical-console kernel-plugin steps
+do not apply. Nothing in this ZIP automatically edits a console or installs a
+plugin. The tester performs transfers manually.
