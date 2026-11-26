@@ -1,5 +1,5 @@
 MMMerge Vita Asset Builder 0.3.0 - Windows x64
-Game-data target: the complete 01.51 data set (53,745 files), used unchanged by 01.52.
+Game-data target: the complete 01.51 data set (53,745 files), used by the current playtest builds.
 
 USE
 1. Extract this entire tool ZIP to a folder on the PC. Do not run it from inside
@@ -15,8 +15,9 @@ USE
    Videos can take several minutes. Wait for the completion message.
 5. Copy the resulting engine.zip and worlds folder into:
       ux0:data/openyamm/assets/
-   Leave the five inner ZIPs packed. Install the standalone MMMerge Vita VPK
-   from https://github.com/sapouni/MMMerge-Vita/releases using VitaShell.
+   Leave the five game-data ZIPs packed. Extract the app update ZIP from
+   https://github.com/sapouni/MMMerge-Vita/releases and install the enclosed
+   VPK with VitaShell.
    INSTALL-DATA.txt and MMMerge-build-report.json describe and verify the output.
    The same archives are used on Vita and Vita3K. No personal saves/settings or
    plugins are written by this tool. It never connects to a Vita or the internet.

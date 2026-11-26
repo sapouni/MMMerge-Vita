@@ -1,11 +1,9 @@
 # Current source/build status
 
-The 01.52 player release is a standalone VPK. Its exact source, symbols and
-configuration are retained locally. The 01.51 release provides the frozen engine/game/Vita source snapshot and the
-corresponding bgfx source snapshot as separate release ZIPs. The older checked-in
-openyamm/dependency tree below remains historical 01.06 material; do not assume
-that checking out the release tag and running those historical commands yields
-the current VPK. A fresh-machine one-command 01.51 build kit is not claimed.
+The 01.53 and 01.54 playtests ship as update ZIPs with a VPK and its modified
+vitaGL source. The build workspace retains each build’s exact source, symbols
+and configuration. The 01.51 release contains frozen engine and bgfx snapshots.
+The checked-in 01.06 source and commands below document that older snapshot.
 
 The new builder source is in builder/. Its versioned data manifests, source
 patches and supplemental resources ship in the portable release rather than
