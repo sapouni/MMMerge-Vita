@@ -1,8 +1,9 @@
 # Current source/build status
 
-The 01.53 and 01.54 playtests ship as update ZIPs with a VPK and its modified
-vitaGL source. The build workspace retains each build’s exact source, symbols
-and configuration. The 01.51 release contains frozen engine and bgfx snapshots.
+The 01.53 and 01.54 playtests have standalone VPKs and update ZIPs containing
+the same VPKs and their modified vitaGL source. The build workspace retains
+each build’s exact source, symbols and configuration. The Windows Asset
+Builder 0.3.0 release contains the frozen 01.51 engine and bgfx snapshots.
 The checked-in 01.06 source and commands below document that older snapshot.
 
 The new builder source is in builder/. Its versioned data manifests, source

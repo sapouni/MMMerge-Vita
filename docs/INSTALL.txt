@@ -1,11 +1,11 @@
 MMMerge Vita installation and updates
 
-Download the update ZIP for your playtest version (about 49 MB).
+Download the standalone VPK for your playtest version (about 49 MB).
 https://github.com/sapouni/MMMerge-Vita/releases
 
-Extract the outer update ZIP on your computer. Keep the enclosed VPK intact
-and install it with VitaShell. It includes the menus, guide, shaders and game
-libraries. The earlier 01.52 release is available as a standalone VPK.
+If you download the full update ZIP, extract it on your computer to get the
+same VPK. Install the VPK with VitaShell. It includes the menus, guide,
+shaders and game libraries.
 
 EXISTING PLAYERS
 Back up ux0:data/openyamm, then install the new VPK over app ID MMVITA001.
@@ -24,7 +24,7 @@ NEW PLAYERS
    ux0:data/openyamm/assets/worlds/mm7.zip
    ux0:data/openyamm/assets/worlds/mm8.zip
    ux0:data/openyamm/assets/worlds/mmmerge.zip
-4. Transfer the extracted app VPK and install it with VitaShell.
+4. Transfer the app VPK and install it with VitaShell.
 5. Launch the game and open the Guide. Keep diagnostic recording off.
 
 No separate Python, FFmpeg, MMMerge mod installation or OpenYAMM download is

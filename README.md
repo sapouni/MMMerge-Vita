@@ -37,10 +37,10 @@ Custom Vita menus and controls alongside the original adventures. Click any imag
 
 | Download | Use it for |
 |---|---|
-| [Game updates — about 49 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Download the update ZIP for your chosen playtest version. Extract it on your computer and install the enclosed VPK with VitaShell. |
+| [Game installer — about 49 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Download the standalone `.vpk` for your chosen version and install it with VitaShell. |
 | [Windows Asset Builder — 156 MB](https://github.com/sapouni/MMMerge-Vita/releases) | Creates all five required data archives from supported installed English GOG MM6, MM7 and MM8. New players need this plus the game VPK. |
 
-The 01.53 and 01.54 update ZIPs each contain a VPK, instructions, checksums and matching vitaGL source. Keep the VPK itself intact for VitaShell. The 01.52 release remains available as a standalone VPK. Use the Windows builder ZIP separately if you need to create game data.
+The 01.53 and 01.54 releases each offer a standalone VPK for installation and an update ZIP containing the same VPK, instructions, checksums and matching vitaGL source. Choose one download per version. First-time players also need the Windows Asset Builder from the **Windows Asset Builder 0.3.0** release.
 
 ## Requirements
 
@@ -70,7 +70,7 @@ Keep your existing storage/YAMT/SD2Vita entries and avoid duplicate plugin entri
 
 ## Installation
 
-1. Download the update ZIP from [Releases](https://github.com/sapouni/MMMerge-Vita/releases) and extract it on your computer.
+1. Download a standalone `.vpk` from [Releases](https://github.com/sapouni/MMMerge-Vita/releases). If you choose the full update ZIP, extract it on your computer to get the VPK.
 2. If you do not already have matching prepared game data, use the [Windows Asset Builder](#windows-asset-builder) to create it from your installed originals.
 3. Copy **engine.zip** and the **worlds** folder into `ux0:data/openyamm/assets/` exactly as shown below. Keep these five inner ZIPs packed.
 4. Transfer the enclosed **VPK** to the Vita and install it with VitaShell. This creates the home-screen bubble on a fresh installation or updates **MMVITA001** on an existing one.
@@ -184,7 +184,7 @@ Adaptive resolution responds to rendering pressure. When enemy movement or AI li
 
 ## Source and contributions
 
-The [release](https://github.com/sapouni/MMMerge-Vita/releases) also includes optional developer downloads: the frozen 01.51 engine source snapshot and corresponding bgfx source snapshot. The 01.53 and 01.54 update ZIPs include their vitaGL source. The build workspace retains the exact engine source, symbols and configuration for each playtest. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone current build kit. See [build status](docs/BUILD.md).
+The **Windows Asset Builder 0.3.0** entry on [Releases](https://github.com/sapouni/MMMerge-Vita/releases) also includes the frozen 01.51 engine and bgfx source snapshots. The 01.53 and 01.54 update ZIPs include their vitaGL source. The build workspace retains the exact engine source, symbols and configuration for each playtest. [Builder source](builder/) is in this repository; its large versioned conversion resources travel with the builder release rather than in Git history. The older checked-in engine/dependency tree is retained as historical review material, not advertised as a fresh-clone current build kit. See [build status](docs/BUILD.md).
 
 Report the version, map/save, reproduction steps, changed settings and capture mode when [filing an issue](https://github.com/sapouni/MMMerge-Vita/issues). Back up saves before testing updates or adventure conversions.
 
